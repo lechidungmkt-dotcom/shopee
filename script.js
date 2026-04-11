@@ -581,33 +581,24 @@ function startPaymentCheck(amount, description) {
     }, 3000);
 }
 
-async function checkPaymentStatus(amount, description) {
-    try {
-        const response = await fetch(`https://api.sepay.vn/v1/transactions/list?limit=10`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${SEPAY_API_KEY}`,
-                'Content-Type': 'application/json'
-            }
-        });
+async function checkPaymentStatus() {
+    // Chỉ kiểm tra nếu đã có ID đơn hàng từ CRM
+    if (!pendingOrderData || !pendingOrderData.crm_id) return;
 
+    try {
+        // Kiểm tra trạng thái đơn hàng trực tiếp trên Server của bạn (đã được Webhook cập nhật)
+        const response = await fetch(`/api/order-status?id=${pendingOrderData.crm_id}`);
         if (!response.ok) return;
 
         const data = await response.json();
-        const transactions = data.transactions;
-
-        // Tìm giao dịch khớp nội dung và số tiền (hoặc chỉ nội dung để linh hoạt)
-        const success = transactions.find(t =>
-            t.transaction_content.includes(description) &&
-            parseFloat(t.amount_in) >= amount
-        );
-
-        if (success) {
+        
+        // Nếu trạng thái trong database đã đổi thành 'sepay' -> Thanh toán thành công!
+        if (data.status === 'sepay') {
             clearInterval(paymentCheckInterval);
             handlePaymentSuccess();
         }
     } catch (error) {
-        console.error("Lỗi kiểm tra thanh toán:", error);
+        console.error("Lỗi kiểm tra trạng thái đơn hàng:", error);
     }
 }
 

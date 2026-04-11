@@ -156,6 +156,17 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
+    // --- API: ORDER STATUS CHECK ---
+    if (req.url.startsWith('/api/order-status?id=') && req.method === 'GET') {
+        const id = req.url.split('=')[1];
+        try {
+            const data = await queryDB(`SELECT status FROM orders WHERE id=${id}`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true, status: data[0]?.status }));
+        } catch (e) { res.writeHead(500); res.end(String(e)); }
+        return;
+    }
+
     // --- API: ORDERS ---
     if (req.url === '/api/orders') {
         if (req.method === 'GET') {
