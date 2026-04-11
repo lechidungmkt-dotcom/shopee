@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đệm Thông Gió Làm Mát Ghế Ô Tô RULAX - Đặt Hàng</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- HEADER -->
+    <header class="shopee-header">
+        <div class="container header-content">
+            <div class="logo">
+                <img src="logo.jpg" alt="Rulax Logo" class="shopee-svg">
+            </div>
+            <div class="search-bar">
+                <input type="text" placeholder="Tìm sản phẩm, thương hiệu, và tên shop">
+                <button class="search-btn">Tìm kiếm</button>
+            </div>
+            <div class="cart-icon" onclick="toggleCart()">
+                🛒 <span class="cart-badge" id="cart-badge">0</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="container main-content">
+        <!-- BREADCRUMB -->
+        <nav class="breadcrumb">
+            <a href="#">Trang Chủ Rulax</a> &gt; <a href="#">Phụ kiện ô tô</a> &gt; <span>Đệm Ghế Làm Mát</span>
+        </nav>
+
+        <!-- SẢN PHẨM HERO SECTION -->
+        <div class="product-card">
+            <!-- Trái: Gallery -->
+            <div class="product-gallery">
+                <div class="main-media" id="main-media-container">
+                    <video id="main-video" src="video.mp4" controls autoplay loop muted></video>
+                    <img id="main-image" src="" alt="Sản phẩm chính" style="display: none;">
+                </div>
+                
+                <!-- Thumbnails: 1 video + 5 ảnh -->
+                <div class="thumbnails">
+                    <div class="thumb-item active" onclick="showVideo()">
+                        <div class="play-icon">▶</div>
+                        <img src="anh1.jpg" alt="Video">
+                    </div>
+                    <div class="thumb-item" onclick="showImage('anh1.jpg')">
+                        <img src="anh1.jpg" alt="Ảnh 1">
+                    </div>
+                    <div class="thumb-item" onclick="showImage('anh2.jpg')">
+                        <img src="anh2.jpg" alt="Ảnh 2">
+                    </div>
+                    <div class="thumb-item" onclick="showImage('anh3.jpg')">
+                        <img src="anh3.jpg" alt="Ảnh 3">
+                    </div>
+                    <div class="thumb-item" onclick="showImage('anh4.jpg')">
+                        <img src="anh4.jpg" alt="Ảnh 4">
+                    </div>
+                    <div class="thumb-item" onclick="showImage('anh5.jpg')">
+                        <img src="anh5.jpg" alt="Ảnh 5">
+                    </div>
+                </div>
+                <div class="social-share">
+                    <span>Chia sẻ:</span> <span class="icons">FB | Zalo</span>
+                    <span class="likes">🤍 Đã thích (1,2k)</span>
+                </div>
+            </div>
+
+            <!-- Phải: Thông tin Mua Hàng -->
+            <div class="product-info">
+                <h1 class="product-title">
+                    <span class="mall-badge">Mall Chính Hãng</span> Đệm Thông Gió Làm Mát Ghế Ô Tô RULAX Cao Cấp, Có Massage | BH 12 Tháng
+                </h1>
+
+                <div class="product-stats">
+                    <div class="rating">
+                        <span>5.0</span>
+                        <span class="stars">⭐⭐⭐⭐⭐</span>
+                    </div>
+                    <div class="divider"></div>
+                    <div class="reviews">
+                        <span>256</span> Đánh Giá
+                    </div>
+                    <div class="divider"></div>
+                    <div class="sold">
+                        <span>1,2k</span> Đã Bán
+                    </div>
+                </div>
+
+                <div class="price-section">
+                    <div class="flash-sale-banner">
+                        <div class="fs-text">⚡ FLASH SALE NỬA GIÁ</div>
+                        <div class="fs-timer">KẾT THÚC TRONG <span id="fs-h">00</span>:<span id="fs-m">15</span>:<span id="fs-s">00</span></div>
+                    </div>
+                    <div class="price-box">
+                        <span class="price-original">₫1.355.000</span>
+                        <span class="price-current">₫1.000</span>
+                        <span class="discount-badge">29% GIẢM</span>
+                    </div>
+                </div>
+
+                <div class="options-group">
+                    <div class="option-row">
+                        <div class="option-label">Vận Chuyển</div>
+                        <div class="option-content shipping">
+                            <span class="freeship-icon">🚚</span> Miễn phí vận chuyển Toàn Quốc <br>
+                            <span class="shipping-detail">Giao hoả tốc (Liên hệ CSKH)</span>
+                        </div>
+                    </div>
+
+                    <!-- BỎ PHẦN CHỌN PHÂN LOẠI & MÀU SẮC DO CHỈ CÓ 1 MODEL -->
+
+                    <div class="option-row" style="align-items: center; margin-top:20px;">
+                        <div class="option-label">Số Lượng</div>
+                        <div class="option-content quantity-selector">
+                            <button onclick="changeQty(-1)">-</button>
+                            <input type="text" id="qty-input" value="1" readonly>
+                            <button onclick="changeQty(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-buttons">
+                    <button class="btn-add-cart" id="btn-add-cart" onclick="addToCart()">
+                        <span>🛒 Thêm Vào Giỏ Hàng</span>
+                    </button>
+                    <button class="btn-buy-now" id="btn-buy-now" onclick="buyNow()">Mua Ngay</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- THÔNG TIN SHOP -->
+        <div class="shop-card">
+            <div class="shop-profile">
+                <div class="shop-avatar">
+                   <div class="avatar-circle">
+                       <img src="logo.jpg" alt="Rulax" style="width:100%; height:100%; object-fit:contain;">
+                   </div>
+                </div>
+                <div class="shop-name-status">
+                    <div class="shop-name">RULAX VIỆT NAM</div>
+                    <div class="shop-status">Thương Hiệu Đồ Chơi Ô Tô Cao Cấp</div>
+                    <div class="shop-buttons">
+                        <button class="btn-chat">📞 Gọi Hotline: 0989 354 832</button>
+                    </div>
+                </div>
+            </div>
+            <div class="shop-stats">
+                <div class="stat-item"><span class="stat-label">Cam kết</span> <span class="stat-value">Chính hãng 100%</span></div>
+                <div class="stat-item"><span class="stat-label">Đổi trả</span> <span class="stat-value">Trong 15 ngày</span></div>
+                <div class="stat-item"><span class="stat-label">Bảo hành</span> <span class="stat-value">12 Tháng</span></div>
+            </div>
+        </div>
+
+        <!-- MÔ TẢ SẢN PHẨM -->
+        <div class="product-description-card">
+            <h2 class="section-heading">CHI TIẾT MÔ TẢ SẢN PHẨM</h2>
+            <div class="desc-content">
+                <h3>CHẤM DỨT NỖI ÁM ẢNH ĐỔ MỒ HÔI LƯNG KHI LÁI XE TRONG MÙA HÈ NÀY CÙNG RULAX!</h3>
+                <p>Mùa hè đến mang theo cái nóng oi ả, rát da thịt. Nhiệt độ ngoài trời có thể lên tới 40 độ C, nhưng nhiệt độ trong cabin xe của bạn, đặc biệt là ngay trên bề mặt chiếc ghế da, còn có thể lên đến 60 độ C. Bạn có nhớ cảm giác mỗi lần mở cửa bước lên xe là một lần "nính thở" vì luồng khí nóng hầm hập phả vào mặt? Bạn có nhớ cảm giác lưng áo ướt nhẹp mồ hôi bám dính vào da thịt, mông nóng ran rêm rỉ mỗi khi lái xe đường dài, hay nhích từng mét trong cung đường tắc nghẽn giờ tan tầm?</p>
+                
+                <p>Những bộ quần áo sơ mi phẳng phiu, những bộ vest sang trọng trở nên xộc xệch, nhăn nhúm và bốc mùi mồ hôi khó chịu ngay trước giờ gặp đối tác hay khách hàng quan trọng. Sức khỏe cũng bị đe dọa khi sự thay đổi nhiệt độ đột ngột, cộng với việc mồ hôi không thể thoát ra gây cảm lạnh, bí da, thậm chí viêm da tiết bã, mẩn ngứa. Đừng để việc lái xe, vốn dĩ là một sự tận hưởng sự tiện nghi, lại biến thành một cực hình "chịu trận" mỗi ngày!</p>
+                
+                <p>Bạn đã thử dùng bật điều hòa tối đa? Không hiệu quả, vì phần nệm ghế ôm sát lưng và hông bạn hoàn toàn không có khe hở để không khí lưu thông! Lưng ghế da lại hấp thụ nhiệt cực nhanh. Đó chính là lý do vì sao <b>Đệm Thông Gió Làm Mát Ghế Ô Tô Cao Cấp Rulax</b> không chỉ là một phụ kiện, mà là một sự đầu tư KHÔNG THỂ THIẾU cho sức khỏe, sự tự tin và trải nghiệm lái xe đẳng cấp của bạn!</p>
+                
+                <img src="anh1.jpg" alt="Đệm Rulax" class="desc-img">
+
+                <h3>🌟 GIẢI PHÁP "CỨU CÁNH" MÙA HÈ HOÀN HẢO!</h3>
+                <p>Đệm Rulax được trang bị hệ thống quạt hút và đẩy gió siêu mạnh mẽ nhưng vận hành cực kỳ êm ái. Luồng không khí mát đi qua các khe hở của cấu trúc Lưới Tổ Ong 3D tản đều khắp toàn bộ diện tích lưng và mông. Cảm giác mát lạnh tức thì lan tỏa chỉ trong 3 giây sau khi bật!</p>
+                <img src="anh2.jpg" alt="Hệ thống làm mát Rulax" class="desc-img">
+
+                <h3>💥 LỢI ÍCH VƯỢT TRỘI ĐÃ CHINH PHỤC HÀNG NGÀN TÀI XẾ:</h3>
+                <ul>
+                    <li style="margin-bottom: 10px;">❄️ <b>LÀM MÁT SIÊU TỐC:</b> Thổi bay khí nóng, ngăn chặn hoàn toàn việc cơ thể tiết ra, đọng lại mồ hôi. Lưng và hông bạn luôn duy trì bề mặt thoáng mát, khô ráo 100%. Bước xuống xe sau nhiều giờ đồng hồ, bạn vẫn giữ phong thái đĩnh đạc, quần áo phẳng phiu, thơm tho như vừa bước ra khỏi nhà.</li>
+                    <li style="margin-bottom: 10px;">🛡️ <b>THIẾT KẾ CÔNG THÁI HỌC BẢO VỆ CỘT SỐNG:</b> Đệm Rulax thiết kế nâng đỡ eo tuyệt vời, giảm thiểu áp lực lên cột sống khi phải ngồi lâu.</li>
+                    <li style="margin-bottom: 10px;">💆 <b>CHẾ ĐỘ MASSAGE THƯ GIÃN KÉP:</b> Xua tan căng thẳng cơ bắp, hỗ trợ lưu thông máu. Mỗi chuyến đi không còn là sự bào mòn thể lực, mà giống như một buổi spa thư giãn thu nhỏ ngay trên xế yêu.</li>
+                    <li style="margin-bottom: 10px;">🌬️ <b>LƯỚI 3D THÔNG MINH SIÊU BỀN:</b> Chất liệu cao cấp, độ đàn hồi xuất sắc, không xẹp lún sau nhiều năm sử dụng.</li>
+                    <li style="margin-bottom: 10px;">⚡ <b>LẮP ĐẶT TRONG 1 PHÚT:</b> Cắm nguồn điện tẩu sạc 12V là sử dụng ngay. Thiết kế sang trọng, tinh tế càng làm tôn lên vẻ đẳng cấp cho nội thất xe bạn.</li>
+                </ul>
+                <img src="anh3.jpg" alt="Lưới 3D tổ ong Rulax" class="desc-img">
+                <img src="anh4.jpg" alt="Massage thư giãn" class="desc-img">
+                
+                <p>Đừng tiếc vài trăm ngàn để bảo vệ sức khỏe và thể diện của bản thân. Thay vì phải chịu đựng mùa hè thiêu đốt, hãy biến cabin ô tô của bạn thành một ốc đảo mát lạnh, thư thái tuyệt đối với Rulax ngay hôm nay. Hàng chục ngàn tài xế Việt đã trải nghiệm và gọi đây là "Phát minh vĩ đại nhất cho các tài xế trong mùa hè". Còn bạn thì sao? Khuyến mãi lớn có hạn, hãy nhanh tay sở hữu!</p>
+                <img src="anh5.jpg" alt="Lắp đặt trên xe" class="desc-img">
+            </div>
+        </div>
+
+        <!-- ĐÁNH GIÁ SẢN PHẨM -->
+        <div class="product-reviews-card">
+            <h2 class="section-heading">ĐÁNH GIÁ SẢN PHẨM (260)</h2>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar1.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='T'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Trần Tuấn Anh</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 02/04/2026 14:30 | Phân loại hàng: Bản Đặc Biệt</div>
+                    <div class="review-text">Sản phẩm rất tốt, giao hàng siêu tốc. Mình làm sale hay chạy xe giữa trưa có cái này lưng đỡ ướt sũng mồ hôi hẳn. Rất đáng tiền! Quạt êm không bị ồn, cắm tẩu sạc là dùng luôn cực tiện. Đệm êm không bị xẹp.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar2.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='H'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Hoàng Lê Khang</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 28/03/2026 09:15 | Phân loại hàng: Đen Viền Đỏ</div>
+                    <div class="review-text">Đệm mát thật sự, massage rung nhẹ nhàng thư giãn khá ok. Mua cho ông già chạy đi tỉnh ông khen tấm tắc. Shop nhiệt tình hỗ trợ, bảo hành tận 12 tháng nên cũng yên tâm. Xứng đáng 10 điểm chất lượng.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar3.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='M'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Nguyễn Minh Trí</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 25/03/2026 19:40 | Phân loại hàng: Đầu cắm 12v</div>
+                    <div class="review-text">Lưới 3D dày dặn thoát khí tốt thật sự. Ngồi hơn 2 tiếng lái xe liên tục mà lưng vẫn mát và khô ráo. Giá đợt flashsale này mua quá hợp lý, rẻ hơn vào thẳng Gara nhiều. Sẽ giới thiệu anh em trong hội xe ủng hộ shop Rulax.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar4.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='P'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Phạm Phương Thảo</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 24/03/2026 10:12 | Phân loại hàng: Bản Đặc Biệt</div>
+                    <div class="review-text">Chồng mình hay phải đi công tác xa, đợt này mùa hè nóng quá nhìn ổng lái xe về lưng áo ướt nhẹp thương lắm. May sao thấy Rulax lướt qua liền mua luôn. Ổng khen quá trời, bảo mát lưng, lại còn kết hợp massage rần rần đỡ mỏi lưng nhiều. Phụ nữ hay đàn ông gì cũng nên mua nha mọi người, đáng đồng tiền bát gạo. Thiết kế ôm trọn ghế rất sang trọng không bị xộc xệch.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar5.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='L'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Lê Văn Hùng</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 20/03/2026 16:45 | Phân loại hàng: Bản Đặc Biệt</div>
+                    <div class="review-text">Đã nhận hàng và test thử. Quạt gió mạnh nhưng êm phắc không gây ồn đau đầu như mấy loại rẻ tiền. Ngồi từ Hà Nội về Thái Bình hơn 2 tiếng lúc xuống vẫn mát rượi. Đệm này giải quyết triệt để nỗi lo đọng mồ hôi. Shop đóng gói cẩn thận, phản hồi tin nhắn nhanh, bảo hành uy tín.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar6.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='B'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Bùi Đức Trọng</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 18/03/2026 08:20 | Phân loại hàng: Đầu cắm 12v</div>
+                    <div class="review-text">Chạy xe dịch vụ nguyên ngày mà không có cái đệm này chắc chết nóng. Khách lên xe cũng khen ngợi hỏi mua ở đâu. Từ ngày lắp, ghế da đỡ bị hôi mùi mồ hôi hẳn. Khuyên ae tài xế nên đầu tư ngay 1 bộ, êm lưng, mát mẻ, tiết kiệm cả tiền bật điều hoà số to.</div>
+                </div>
+            </div>
+            <div class="review-item">
+                <div class="reviewer-avatar"><img src="avatar7.jpg" alt="Avatar" onerror="this.style.display='none'; this.parentNode.innerHTML='N'"></div>
+                <div class="review-content">
+                    <div class="reviewer-name">Nguyễn Thị Mai</div>
+                    <div class="stars">⭐⭐⭐⭐⭐</div>
+                    <div class="review-time">Ngày 15/03/2026 21:05 | Phân loại hàng: Đen Viền Đỏ</div>
+                    <div class="review-text">Sản phẩm xịn xò nha, form dáng cứng cáp lưới 3d thông thoáng. Cắm tẩu 12v nên không ảnh hưởng đến hệ thống điện của xe (mình hơi kỹ vụ này). Giá nhỉnh hơn mấy chỗ khác một xíu nhưng cầm cái hàng lên thấy nó xứng đáng vô cùng. Mall nên yên tâm không sợ hàng fake. Chúc shop buôn may bán đắt.</div>
+                </div>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px;">
+                <button class="btn-buy-now" style="width: 100%; max-width: 400px; display: inline-block; height: 50px; font-size: 18px; font-weight:bold; box-shadow: 0 4px 10px rgba(238, 77, 45, 0.4);" onclick="buyNow()">ĐẶT MUA NGAY KẺO LỠ FLASH SALE</button>
+            </div>
+        </div>
+
+        <!-- KHẢO SÁT / CHỜ (WAITLIST) -->
+        <div class="survey-card" id="waitlist-section">
+            <h2 class="section-heading" style="font-size: 18px; font-weight: 500; margin-bottom: 20px;">THAM GIA KHẢO SÁT - WAITLIST</h2>
+            <form id="waitlist-form" onsubmit="submitWaitlist(event)">
+                <div class="form-group">
+                    <label>1️⃣ Anh/Chị vui lòng cho biết Tên của mình?</label>
+                    <input type="text" id="wl-name" required placeholder="Nhập tên của bạn">
+                </div>
+                <div class="form-group">
+                    <label>2️⃣ Số điện thoại hoặc Zalo của Anh/Chị là gì?</label>
+                    <input type="tel" id="wl-phone" required placeholder="Nhập số điện thoại/Zalo">
+                </div>
+                <div class="form-group">
+                    <label>3️⃣ Anh/Chị thường lái xe bao lâu mỗi ngày?</label>
+                    <div class="radio-group" style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 8px;">
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-time" value="Dưới 1 giờ" required> Dưới 1 giờ</label>
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-time" value="1–2 giờ" required> 1–2 giờ</label>
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-time" value="Trên 2 giờ" required> Trên 2 giờ</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>4️⃣ Anh/Chị có gặp tình trạng nóng lưng hoặc bí mồ hôi khi ngồi lái xe không?</label>
+                    <div class="radio-group" style="display: flex; gap: 15px; flex-wrap: wrap; margin-top: 8px;">
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-sweat" value="Thường xuyên" required> Thường xuyên</label>
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-sweat" value="Thỉnh thoảng" required> Thỉnh thoảng</label>
+                        <label style="font-weight: normal; cursor: pointer; display: flex; align-items: center; gap: 5px;"><input type="radio" name="wl-sweat" value="Hiếm khi" required> Hiếm khi</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>5️⃣ Anh/Chị đang sử dụng dòng xe nào? (Ví dụ: sedan, SUV, bán tải… hoặc ghi tên xe)</label>
+                    <input type="text" id="wl-car" required placeholder="Dòng xe của bạn đang sử dụng">
+                </div>
+                
+                <button type="submit" class="btn-buy-now" style="width: 100%; max-width: 400px; display: block; margin: 20px auto 0; height: 50px; font-size: 18px; font-weight:bold; box-shadow: 0 4px 10px rgba(238, 77, 45, 0.4);">GỬI THÔNG TIN WAITLIST</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Giỏ Hàng (Slide-out Sidebar) -->
+    <div id="cart-overlay" onclick="toggleCart()"></div>
+    <div id="cart-sidebar">
+        <div class="cart-header">
+            <h3>Giỏ Hàng Của Bạn</h3>
+            <span class="close-cart" onclick="toggleCart()">&times;</span>
+        </div>
+        <div class="cart-body" id="cart-items-container">
+            <!-- Render items here -->
+        </div>
+        <div class="cart-footer">
+            <div class="cart-total">
+                <span>Tổng tiền:</span>
+                <span style="color:#ee4d2d; font-weight:bold; font-size:20px;" id="cart-total-price">0₫</span>
+            </div>
+            <button class="btn-buy-now" style="width:100%;" onclick="openOrderModal()">TIẾN HÀNH ĐẶT HÀNG</button>
+        </div>
+    </div>
+
+    <!-- Đặt Hàng Popup Modal -->
+    <div id="order-modal" class="modal">
+        <div class="modal-content order-form-content">
+            <span class="close-btn" onclick="closeOrderModal()">&times;</span>
+            <h2 style="margin-bottom:15px; color:#ee4d2d; text-align:center;">ĐIỀN THÔNG TIN ĐẶT MUA</h2>
+            <div style="background:#f5f5f5; padding:10px; margin-bottom:15px; border-radius:4px; font-size:14px;">
+                <b>Sản phầm:</b> Đệm Thông Gió Làm Mát Rulax<br>
+                <b>Tổng Số Lượng:</b> <span id="form-total-qty">1</span> chiếc<br>
+                <b>Tổng Tiền:</b> <span id="form-total-price" style="color:#ee4d2d; font-weight:bold;">959.000₫</span>
+            </div>
+            <form id="checkout-form" onsubmit="submitForm(event)">
+                <div class="form-group">
+                    <label>Họ và Tên *</label>
+                    <input type="text" id="cname" required placeholder="Nhập tên của bạn">
+                </div>
+                <div class="form-group">
+                    <label>Số điện thoại *</label>
+                    <input type="tel" id="cphone" required placeholder="Nhập đủ 10 số điện thoại" pattern="[0-9]{10}" maxlength="10" title="Vui lòng nhập đúng 10 chữ số">
+                </div>
+                <div class="form-group">
+                    <label>Địa chỉ nhận hàng *</label>
+                    <textarea id="caddress" required placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Ghi chú đơn hàng (Không bắt buộc)</label>
+                    <textarea id="cnotes" placeholder="Ví dụ: Giao hàng giờ hành chính"></textarea>
+                </div>
+                <button type="submit" class="btn-buy-now" id="btn-submit-order" style="width:100%; margin-top:10px;">HOÀN TẤT ĐẶT HÀNG</button>
+                <div id="order-loading" style="display:none; text-align:center; margin-top:10px; color:#666;">Đang xử lý đơn hàng...</div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Xác Nhận Đặt Hàng Popup Modal -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content" style="max-width: 450px;">
+            <h2 style="color:#28a745; text-align:center; margin-bottom:10px;">Cảm ơn bạn đã đặt mua!</h2>
+            <p style="text-align:center; margin-bottom:15px; font-size:15px;">Chúng tôi sẽ liên hệ lại với bạn để thông báo xác nhận đơn hàng sớm nhất có thể.</p>
+            <div style="background:#fafafa; border:1px dashed #ee4d2d; padding:15px; border-radius:4px; margin-bottom:15px;">
+                <p style="margin-bottom:8px; font-weight:bold; color:#ee4d2d; text-align:center;">VUI LÒNG KIỂM TRA LẠI THÔNG TIN CỦA MÌNH:</p>
+                <p style="margin-bottom:5px; font-size:15px;"><b>Họ & Tên:</b> <span id="conf-name"></span></p>
+                <p style="margin-bottom:5px; font-size:15px;"><b>Điện thoại:</b> <span id="conf-phone"></span></p>
+                <p style="font-size:15px;"><b>Địa chỉ:</b> <span id="conf-address"></span></p>
+            </div>
+            <div style="display:flex; gap:10px;">
+                <button class="btn-buy-now" style="flex:1; background: white; color: #555; border: 1px solid #ccc;" onclick="editInfo()">SỬA LẠI THÔNG TIN</button>
+                <button class="btn-buy-now" style="flex:1;" onclick="executeOrder()">XÁC NHẬN ĐÚNG</button>
+            </div>
+            <div id="confirm-loading" style="display:none; text-align:center; margin-top:10px; color:#ee4d2d; font-weight:bold;">Hệ thống đang ghi nhận đơn hàng. Vui lòng chờ...</div>
+        </div>
+    </div>
+
+    <!-- Thông báo Thành Công/Thất Bại -->
+    <div id="alert-modal" class="modal">
+        <div class="modal-content" style="text-align:center; max-width:350px;">
+            <div id="alert-message" style="margin:20px 0; font-size:16px;"></div>
+            <button class="btn-buy-now" onclick="closeAlertModal()">Đóng</button>
+        </div>
+    </div>
+
+    <!-- CHATBOT -->
+    <div id="chatbot-container">
+        <div id="chatbot-window">
+            <div id="chatbot-header">
+                <div class="bot-info">
+                    <img src="logo.jpg" alt="Rulax Bot">
+                    <span>Trợ lý Rulax</span>
+                </div>
+                <span id="close-chatbot">&times;</span>
+            </div>
+            <div id="chatbot-messages">
+                <!-- Tin nhắn tự động sẽ hiện ở đây -->
+            </div>
+            <div id="chatbot-options">
+                <!-- Các câu hỏi thường gặp hiện ở đây -->
+            </div>
+            <div id="chatbot-input-area">
+                <input type="text" id="chatbot-input" placeholder="Hỏi tôi bất cứ điều gì...">
+                <button id="chatbot-send-btn">➤</button>
+            </div>
+        </div>
+        <div id="chatbot-toggle">
+            <span class="chat-icon">💬</span>
+            <span class="unread-dot"></span>
+        </div>
+    </div>
+
+    <!-- Bảng Thanh Toán QR (SePay) -->
+    <div id="payment-modal" class="modal" style="display: none; align-items: center; justify-content: center;">
+        <div class="modal-content" style="max-width: 400px; text-align: center; border-radius: 15px; padding: 25px; background: white; position: relative;">
+            <h3 style="color: #ee4d2d; margin-bottom: 10px;">Quét mã để thanh toán</h3>
+            <p style="font-size: 14px; color: #666; margin-bottom: 20px;">Vui lòng quét mã QR dưới đây để hoàn tất đơn hàng.</p>
+            
+            <div id="qrcode-container" style="margin: 20px 0; background: #fff; padding: 15px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                <img id="qr-image" src="" alt="QR Code" style="width: 100%; max-width: 250px;">
+            </div>
+
+            <div style="background: #fff8e1; padding: 15px; border-radius: 8px; margin-bottom: 20px; border-left: 5px solid #ffc107; text-align: left;">
+                <p style="margin: 0 0 5px 0; font-size: 13px; color: #856404;">Nội dung chuyển khoản (bắt buộc):</p>
+                <div style="display: flex; align-items: center; justify-content: space-between;">
+                    <strong id="sepay-description" style="font-size: 20px; color: #d32f2f; letter-spacing: 1px;">...</strong>
+                    <button onclick="copySepayContent()" style="background: white; border: 1px solid #ffc107; color: #856404; font-size: 12px; padding: 4px 10px; border-radius: 4px; cursor: pointer;">Copy</button>
+                </div>
+            </div>
+
+            <div id="payment-status-container" style="margin-top: 15px;">
+                <div id="payment-status" style="color: #666; font-size: 15px; display: flex; align-items: center; justify-content: center; gap: 10px;">
+                    <div class="spinner" id="payment-spinner"></div>
+                    <span id="status-text">Đang chờ bạn thanh toán...</span>
+                </div>
+            </div>
+
+            <button class="btn-buy-now" onclick="closePaymentModal()" style="margin-top: 25px; background: #f5f5f5; border: 1px solid #ddd; padding: 10px 20px; border-radius: 8px; cursor: pointer; color: #666; width: 100%; box-shadow: none;">Để sau / Thanh toán COD</button>
+        </div>
+    </div>
+
+    <style>
+    .spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #ee4d2d;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    
+    #payment-modal.modal {
+        background-color: rgba(0,0,0,0.6);
+        z-index: 1001;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+    }
+    </style>
+
+    <script src="script.js"></script>
+
+</body>
+</html>

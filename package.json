@@ -1,0 +1,18 @@
+{
+  "name": "shopee-landing-page-rulax",
+  "version": "1.0.0",
+  "description": "Landing Page dành cho sản phẩm Đệm Thông Gió Làm Mát Ghế Ô Tô Rulax, tích hợp Chatbot và Google Sheets.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "landing-page",
+    "shopee",
+    "rulax",
+    "chatbot"
+  ],
+  "author": "Rulax Việt Nam",
+  "license": "ISC"
+}
