@@ -43,7 +43,41 @@ window.changeQty = function (amount) {
 
 // Quản lý GIỎ HÀNG (Cart Logic)
 let cartQty = 0;
-const PRICE = 1000;
+let PRICE = 959000; // Giá mặc định nếu không kết nối được server
+
+// TỰ ĐỘNG ĐỒNG BỘ GIÁ TỪ CRM
+async function syncPriceFromCRM() {
+    try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+            const products = await res.json();
+            const mainProduct = products.find(p => p.id == 1);
+            if (mainProduct && mainProduct.price) {
+                PRICE = mainProduct.price;
+                renderDynamicPrices();
+            }
+        }
+    } catch (e) {
+        console.warn("Không thể lấy giá từ CRM, dùng giá mặc định.");
+    }
+}
+
+function renderDynamicPrices() {
+    const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(PRICE);
+    
+    // Cập nhật giá chính trên trang
+    const mainPriceEl = document.getElementById('price-main');
+    if (mainPriceEl) mainPriceEl.innerText = formattedPrice;
+
+    // Cập nhật giá trong Chatbot script
+    const priceFaq = chatbotData.faqs.find(f => f.q.includes("Giá"));
+    if (priceFaq) {
+        priceFaq.a = `Hiện tại đệm Rulax đang có giá cực ưu đãi là ${formattedPrice} (giá gốc 1.355.000₫). Đây là mức giá quá hời cho một bộ đệm cao cấp có cả làm mát và massage. Anh em nên tranh thủ chốt sớm vì chương trình Flash Sale có hạn.`;
+    }
+}
+
+// Chạy đồng bộ ngay khi tải trang
+syncPriceFromCRM();
 
 window.toggleCart = function () {
     const sidebar = document.getElementById('cart-sidebar');
@@ -85,7 +119,7 @@ function renderCartUI() {
             <img src="anh1.jpg" alt="Đệm làm mát">
             <div class="cart-item-info">
                 <div class="cart-item-title">Đệm Thông Gió Làm Mát Ghế Ô Tô Rulax</div>
-                <div style="color:#ee4d2d; font-weight:bold; margin-top:5px;">1.000₫</div>
+                <div style="color:#ee4d2d; font-weight:bold; margin-top:5px;">${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(PRICE)}</div>
                 <div style="color:#666; margin-top:2px;">Số lượng: x${cartQty}</div>
             </div>
         </div>
@@ -113,7 +147,8 @@ window.openOrderModal = function () {
     }
     toggleCart(); // Đóng giỏ hàng
     document.getElementById('form-total-qty').innerText = cartQty;
-    document.getElementById('form-total-price').innerText = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(cartQty * PRICE);
+    const total = cartQty * PRICE;
+    document.getElementById('form-total-price').innerText = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total);
     orderModal.style.display = 'flex';
 }
 
