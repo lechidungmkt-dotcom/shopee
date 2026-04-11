@@ -1,7 +1,37 @@
 const http = require('http');
+const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+
+// ===== CẤU HÌNH SEPAY =====
+const SEPAY_API_KEY = "K2AJXHECOHBZJQDMNLSX0J36A7IS8BKWTCGRV11AIBQRO4DSG4YJFZ7PIK3Y5BFX";
+const SEPAY_ACCOUNT = "80002345939";
+
+// Gọi API SePay để lấy danh sách giao dịch gần nhất
+function fetchSepayTransactions() {
+    return new Promise((resolve, reject) => {
+        const options = {
+            hostname: 'my.sepay.vn',
+            path: `/userapi/transactions/list?limit=10&account_number=${SEPAY_ACCOUNT}`,
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${SEPAY_API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        };
+        const req = https.request(options, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => {
+                try { resolve(JSON.parse(data)); }
+                catch (e) { reject(e); }
+            });
+        });
+        req.on('error', reject);
+        req.end();
+    });
+}
 
 const PORT = process.env.PORT || 3000;
 
@@ -283,6 +313,54 @@ const server = http.createServer(async (req, res) => {
                 console.error('[SePay Raw Body was]:', body);
             }
         });
+        return;
+    }
+
+    // --- API: CHECK PAYMENT (CHỦ ĐỘNG HỎI SEPAY API) ---
+    if (req.url.startsWith('/api/check-payment') && req.method === 'GET') {
+        const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
+        const orderId = urlParams.get('id');
+        const description = (urlParams.get('desc') || '').toUpperCase();
+
+        try {
+            // 1. Kiểm tra trong DB trước (nếu webhook đã cập nhật sẵn rồi)
+            const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
+            if (dbData[0]?.status === 'sepay') {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, status: 'sepay', source: 'db' }));
+                return;
+            }
+
+            // 2. Chủ động hỏi SePay API để tìm giao dịch khớp
+            const sepayData = await fetchSepayTransactions();
+            console.log(`[CheckPayment] Hỏi SePay API cho đơn #${orderId}, tìm nội dung: "${description}"`);
+
+            const transactions = sepayData?.transactions || sepayData?.data || [];
+            const matched = transactions.find(t => {
+                const content = (t.transaction_content || t.content || t.description || '').toUpperCase();
+                return content.includes(`DH${orderId}`) || (description && content.includes(description));
+            });
+
+            if (matched) {
+                console.log(`[CheckPayment] ✅ Tìm thấy giao dịch khớp! Cập nhật đơn #${orderId}...`);
+                await runSQL(`UPDATE orders SET status='sepay' WHERE id=${orderId}`);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, status: 'sepay', source: 'api' }));
+            } else {
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, status: dbData[0]?.status || 'pending', source: 'api' }));
+            }
+        } catch (e) {
+            console.error('[CheckPayment Error]:', e.message);
+            // Fallback về check DB nếu SePay API lỗi
+            try {
+                const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true, status: dbData[0]?.status || 'pending', source: 'db_fallback' }));
+            } catch (e2) {
+                res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
+            }
+        }
         return;
     }
 
