@@ -192,9 +192,19 @@ const server = http.createServer(async (req, res) => {
                         const qty = o.quantity || 1;
                         await runSQL(`INSERT INTO orders (customer_id, product_id, amount, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(o.date || o.order_date)})`);
                         await runSQL(`UPDATE products SET stock = stock - ${qty} WHERE id = ${productId}`);
+                        
+                        // Lấy ID đơn hàng vừa tạo để trả về cho Client
+                        const newOrder = await queryDB("SELECT last_insert_rowid() as id");
+                        const orderId = newOrder[0]?.id;
+                        res.writeHead(200, { 'Content-Type': 'application/json' });
+                        res.end(JSON.stringify({ success: true, id: orderId }));
+                        return;
                     }
                     res.writeHead(200); res.end(JSON.stringify({ success: true }));
-                } catch (e) { res.writeHead(500); res.end(String(e)); }
+                } catch (e) { 
+                    console.error("Order API Error:", e);
+                    res.writeHead(500); res.end(JSON.stringify({ error: String(e) })); 
+                }
             });
         }
         return;
@@ -206,6 +216,34 @@ const server = http.createServer(async (req, res) => {
             await runSQL(`DELETE FROM orders WHERE id=${id}`);
             res.writeHead(200); res.end(JSON.stringify({ success: true }));
         } catch (e) { res.writeHead(500); res.end(String(e)); }
+        return;
+    }
+
+    // --- API: SEPAY WEBHOOK ---
+    if (req.url === '/api/sepay-webhook' && req.method === 'POST') {
+        let body = '';
+        req.on('data', c => body += c);
+        req.on('end', async () => {
+            try {
+                const data = JSON.parse(body);
+                const content = data.content || "";
+                
+                // Tìm mã đơn hàng dạng DHxxx trong nội dung chuyển khoản
+                const match = content.match(/DH(\d+)/i);
+                if (match) {
+                    const orderId = match[1];
+                    // Cập nhật trạng thái đơn hàng thành 'sepay'
+                    await runSQL(`UPDATE orders SET status='sepay' WHERE id=${orderId}`);
+                    console.log(`[SePay Webhook] Đã cập nhật đơn hàng #${orderId} thành sepay.`);
+                }
+                
+                res.writeHead(200, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ success: true }));
+            } catch (e) {
+                console.error("Webhook Error:", e);
+                res.writeHead(500); res.end(JSON.stringify({ success: false }));
+            }
+        });
         return;
     }
 

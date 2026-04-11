@@ -178,13 +178,6 @@ window.submitForm = function (e) {
         alert("❌ Lỗi: Số điện thoại không đúng định dạng. Vui lòng kiểm tra lại (yêu cầu điền đúng 10 chữ số)!");
         return;
     }
-
-    // Kiểm tra đã gán Webhook chưa
-    if (GOOGLE_APP_SCRIPT_URL === "HIỆN_TẠI_CHƯA_CÓ_LINK") {
-        alert("CHƯA CẬP NHẬT LINK APP SCRIPT!\nBạn phải cài đặt code Google App Script như hướng dẫn và dán URL vào file script.js dòng trên cùng thì hệ thống mới chạy.");
-        return;
-    }
-
     // 1. Thu thập dữ liệu và chuyển sang bảng chờ xác nhận
     pendingOrderData = {
         form_type: "ORDER", // Đánh dấu đây là dữ liệu đặt hàng
@@ -217,69 +210,77 @@ window.editInfo = function () {
 window.executeOrder = function () {
     if (!pendingOrderData) return;
 
-    // Các thẻ nút
     const btnEdit = document.querySelector('#confirm-modal .btn-buy-now[onclick="editInfo()"]');
     const btnConfirm = document.querySelector('#confirm-modal .btn-buy-now[onclick="executeOrder()"]');
     const loadingText = document.getElementById('confirm-loading');
 
-    // Đang chạy => Ẩn 2 nút chức năng, Hiện text đang xử lý
     btnEdit.style.display = 'none';
     btnConfirm.style.display = 'none';
     loadingText.style.display = 'block';
 
-    // 1. Gửi NGAY LẬP TỨC lên Google Sheets với trạng thái mặc định là COD
-    sendOrderToGoogle('COD', (success) => {
-        // Tắt bảng Confirm
-        document.getElementById('confirm-modal').style.display = 'none';
+    // 1. Gửi lên Google Sheets và CRM với trạng thái mặc định là COD
+    sendOrderToGoogle('COD').then((crmResponse) => {
+        // Lưu ID từ CRM để cập nhật nếu thanh toán SePay thành công
+        if (crmResponse && crmResponse.id) {
+            pendingOrderData.crm_id = crmResponse.id;
+        }
+        
+        // Lưu thông tin vào localStorage để trang thanks.html hiển thị
+        localStorage.setItem('last_order_info', JSON.stringify({
+            ...pendingOrderData,
+            payment_status: 'COD'
+        }));
 
-        // Reset sạch form và giỏ TRƯỚC khi hiện QR
-        document.getElementById('checkout-form').reset();
+        document.getElementById('confirm-modal').style.display = 'none';
+        
         const totalToPay = pendingOrderData.total_price;
 
-        // Cập nhật UI giỏ hàng về 0
+        // Reset giỏ hàng
         cartQty = 0;
         document.getElementById('cart-badge').innerText = 0;
+        document.getElementById('checkout-form').reset();
 
-        // Reset nút confirm cho lần sau
         btnEdit.style.display = 'block';
         btnConfirm.style.display = 'block';
         loadingText.style.display = 'none';
 
-        // 2. MỞ BẢNG THANH TOÁN QR (Khách thoát lúc này thì bạn vẫn đã có data COD ở trên)
+        // 2. MỞ BẢNG THANH TOÁN QR
         openPaymentModal(totalToPay);
     });
 }
 
-window.sendOrderToGoogle = function (paymentStatus, callback) {
-    if (!pendingOrderData) return;
+window.sendOrderToGoogle = function (paymentStatus) {
+    if (!pendingOrderData) return Promise.resolve(null);
 
-    // Chèn trạng thái vào ghi chú hoặc gửi dưới dạng field riêng
     const dataToSend = {
         ...pendingOrderData,
-        payment_status: paymentStatus // 'COD' hoặc 'Đã thanh toán (SePay)'
+        payment_status: paymentStatus
     };
 
-    // Gửi song song lên Google Sheets và CRM địa phương
-    Promise.all([
-        fetch(GOOGLE_APP_SCRIPT_URL, {
-            method: 'POST',
-            mode: 'no-cors',
-            cache: 'no-cache',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSend)
-        }),
-        fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dataToSend)
-        }).catch(err => console.error("Lỗi gửi CRM:", err))
-    ])
-    .then(() => { 
-        if (callback) callback(true); 
-    })
-    .catch(err => {
-        console.error("Lỗi gửi dữ liệu:", err);
-        if (callback) callback(false);
+    // Trả về promise để executeOrder có thể lấy được ID từ CRM
+    return new Promise((resolve) => {
+        Promise.all([
+            fetch(GOOGLE_APP_SCRIPT_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                cache: 'no-cache',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToSend)
+            }),
+            fetch('/api/orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dataToSend)
+            }).then(res => res.json()).catch(err => console.error("Lỗi gửi CRM:", err))
+        ])
+        .then((results) => { 
+            const crmData = results[1]; // Kết quả từ fetch('/api/orders')
+            resolve(crmData);
+        })
+        .catch(err => {
+            console.error("Lỗi gửi dữ liệu:", err);
+            resolve(null);
+        });
     });
 }
 
@@ -542,20 +543,26 @@ function handleBuy() {
 let paymentCheckInterval = null;
 
 window.openPaymentModal = function (amount) {
-    const description = "DH" + Math.floor(Date.now() / 1000); // Tạo nội dung chuyển khoản duy nhất (VD: DH171283...)
+    // Sử dụng CRM ID để Webhook có thể đối soát chính xác đơn hàng trong database
+    const orderCode = (pendingOrderData && pendingOrderData.crm_id) ? pendingOrderData.crm_id : Math.floor(Date.now() / 1000);
+    const description = "DH" + orderCode;
+    
     const qrUrl = `https://qr.sepay.vn/img?acc=${SEPAY_STK}&bank=${SEPAY_BANK}&amount=${amount}&des=${description}&template=compact`;
 
     document.getElementById('qr-image').src = qrUrl;
     document.getElementById('sepay-description').innerText = description;
     document.getElementById('payment-modal').style.display = 'flex';
 
-    // Bắt đầu kiểm tra giao dịch
+    // Bắt đầu kiểm tra giao dịch (Polling fallback)
     startPaymentCheck(amount, description);
 }
 
 window.closePaymentModal = function () {
     document.getElementById('payment-modal').style.display = 'none';
     if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+    
+    // Khi thoát bảng QR, chuyển hướng tới trang cảm ơn (vì đơn COD đã được tạo trước đó)
+    window.location.href = 'thanks.html';
 }
 
 window.copySepayContent = function () {
@@ -609,11 +616,24 @@ function handlePaymentSuccess() {
     document.getElementById('status-text').innerHTML = "<b style='color:#28a745;'>🎉 Đã nhận được thanh toán!</b>";
     document.getElementById('status-text').style.color = "#28a745";
 
-    // GỬI LỆNH CẬP NHẬT TRẠNG THÁI LÊN GOOGLE SHEETS
-    sendOrderToGoogle('Đã thanh toán (SePay)');
+    // Cập nhật trạng thái 'sepay' cho đơn hàng đã có trong CRM (Dùng ID đã lưu)
+    if (pendingOrderData && pendingOrderData.crm_id) {
+        fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                id: pendingOrderData.crm_id,
+                status: 'sepay'
+            })
+        }).catch(err => console.error("Lỗi cập nhật trạng thái SePay:", err));
+        
+        // Cập nhật lại localStorage để trang thanks hiển thị đúng trạng thái
+        const lastOrder = JSON.parse(localStorage.getItem('last_order_info') || '{}');
+        lastOrder.payment_status = 'sepay';
+        localStorage.setItem('last_order_info', JSON.stringify(lastOrder));
+    }
 
     setTimeout(() => {
-        closePaymentModal();
-        showAlert("<b style='color:#28a745; font-size:20px;'>🎉 THANH TOÁN THÀNH CÔNG!</b><br><br>Cảm ơn bạn đã hoàn tất thanh toán. Đơn hàng sẽ được gửi đi ngay lập tức!");
+        window.location.href = 'thanks.html';
     }, 2000);
 }
