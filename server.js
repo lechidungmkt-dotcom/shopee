@@ -190,12 +190,16 @@ const server = http.createServer(async (req, res) => {
                         let productId = o.product_id || 1; 
 
                         const qty = o.quantity || 1;
-                        await runSQL(`INSERT INTO orders (customer_id, product_id, amount, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(o.date || o.order_date)})`);
+                        // Gộp INSERT và SELECT vào cùng 1 chuỗi để lấy được ID chính xác trong 1 session
+                        const insertAndGetIdSql = `
+                            INSERT INTO orders (customer_id, product_id, amount, status, order_date) 
+                            VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(o.date || o.order_date)});
+                            SELECT last_insert_rowid() as id;
+                        `;
+                        const dbResult = await queryDB(insertAndGetIdSql);
                         await runSQL(`UPDATE products SET stock = stock - ${qty} WHERE id = ${productId}`);
                         
-                        // Lấy ID đơn hàng vừa tạo để trả về cho Client
-                        const newOrder = await queryDB("SELECT last_insert_rowid() as id");
-                        const orderId = newOrder[0]?.id;
+                        const orderId = dbResult[0]?.id;
                         res.writeHead(200, { 'Content-Type': 'application/json' });
                         res.end(JSON.stringify({ success: true, id: orderId }));
                         return;
