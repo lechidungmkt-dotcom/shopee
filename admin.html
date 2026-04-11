@@ -144,6 +144,7 @@
         .status-paid { background: #e8f5e9; color: #2e7d32; }
         .status-pending { background: #fff3e0; color: #ef6c00; }
         .status-cod { background: #eceff1; color: #455a64; }
+        .status-sepay { background: #e3f2fd; color: #1565c0; }
 
         .notes-preview {
             max-width: 200px;
@@ -411,36 +412,59 @@
 
         function renderCustomers(data) {
             const list = document.getElementById('customer-list');
-            list.innerHTML = data.map(c => `
+            list.innerHTML = data.map(c => {
+                const rawDate = c.registration_date || '';
+                const isoMatch = rawDate.match(/(\d{4})-(\d{2})-(\d{2})/);
+                const displayDate = isoMatch ? `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]}` : rawDate.split(' ')[0];
+                return `
                 <tr>
                     <td>${c.id}</td>
                     <td><b>${c.name}</b></td>
                     <td>${c.phone}</td>
                     <td><div class="notes-preview" title="${c.notes || ''}">${c.notes || '-'}</div></td>
-                    <td>${(c.registration_date || '').split(' ')[0]}</td>
+                    <td>${displayDate}</td>
                     <td>
                         <button class="btn btn-sm btn-outline" onclick='editCustomer(${JSON.stringify(c)})'>Sửa</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('customers', ${c.id})">Xóa</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function renderOrders(data) {
             const list = document.getElementById('order-list');
-            list.innerHTML = data.map(o => `
+            list.innerHTML = data.map(o => {
+                const rawDate = o.order_date || '';
+                // Format: YYYY-MM-DD HH:mm:ss => DD/MM/YYYY HH:mm
+                let displayDate = rawDate;
+                const isoMatch = rawDate.match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+                if (isoMatch) {
+                    displayDate = `${isoMatch[3]}/${isoMatch[2]}/${isoMatch[1]} ${isoMatch[4]}:${isoMatch[5]}`;
+                } else if (rawDate.length > 10) {
+                    displayDate = rawDate.substring(0, 16);
+                } else {
+                    displayDate = rawDate.split(' ')[0];
+                }
+                const statusLower = (o.status || 'pending').toLowerCase();
+                const statusLabel = {
+                    'sepay': '✅ SePay',
+                    'cod': '📦 COD',
+                    'paid': '✅ Đã TT',
+                    'pending': '⏳ Chờ'
+                }[statusLower] || o.status;
+                return `
                 <tr>
                     <td>#${o.id}</td>
                     <td>${o.customer_name}</td>
                     <td>${o.product_name} x ${o.quantity || 1}</td>
                     <td style="color:var(--primary); font-weight:bold;">${Number(o.amount).toLocaleString()}₫</td>
-                    <td><span class="status-pill status-${(o.status || 'pending').toLowerCase()}">${o.status}</span></td>
-                    <td>${(o.order_date || '').split(' ')[0]}</td>
+                    <td><span class="status-pill status-${statusLower}">${statusLabel}</span></td>
+                    <td style="font-size:13px;">${displayDate}</td>
                     <td>
                         <button class="btn btn-sm btn-danger" onclick="deleteItem('orders', ${o.id})">Xóa</button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         async function deleteItem(type, id) {
@@ -534,7 +558,14 @@
                 quantity: document.getElementById('o-qty').value,
                 amount: document.getElementById('o-amount').value,
                 status: document.getElementById('o-status').value,
-                order_date: new Date().toLocaleDateString()
+                order_date: (() => {
+                    const now = new Date();
+                    const offset = 7 * 60;
+                    const localMs = now.getTime() + (offset * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
+                    const d = new Date(localMs);
+                    const pad = n => String(n).padStart(2, '0');
+                    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+                })()
             };
             await apiReq(API.orders, 'POST', data);
             closeModal('modal-order');

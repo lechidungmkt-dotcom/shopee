@@ -4,6 +4,16 @@ const path = require('path');
 const { exec } = require('child_process');
 
 const PORT = process.env.PORT || 3000;
+
+// Helper: Lấy ngày giờ hiện tại theo múi giờ Việt Nam (GMT+7)
+function getNowVN() {
+    const now = new Date();
+    const offset = 7 * 60; // GMT+7 in minutes
+    const localMs = now.getTime() + (offset * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
+    const d = new Date(localMs);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
 const DB_PATH = path.join(__dirname, 'brain.db');
 
 // Helper to escape single quotes for SQLite
@@ -201,10 +211,12 @@ const server = http.createServer(async (req, res) => {
                         let productId = o.product_id || 1; 
 
                         const qty = o.quantity || 1;
+                        // Dùng ngày từ client, hoặc fallback về giờ máy chủ (GMT+7)
+                        const orderDate = (o.date || o.order_date) ? (o.date || o.order_date) : getNowVN();
                         // Gộp INSERT và SELECT vào cùng 1 chuỗi để lấy được ID chính xác trong 1 session
                         const insertAndGetIdSql = `
                             INSERT INTO orders (customer_id, product_id, amount, status, order_date) 
-                            VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(o.date || o.order_date)});
+                            VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(orderDate)});
                             SELECT last_insert_rowid() as id;
                         `;
                         const dbResult = await queryDB(insertAndGetIdSql);
@@ -239,24 +251,36 @@ const server = http.createServer(async (req, res) => {
         let body = '';
         req.on('data', c => body += c);
         req.on('end', async () => {
+            // Luôn trả về 200 trước để SePay không retry
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ success: true }));
+
             try {
+                console.log(`\n===== [SePay Webhook] ${getNowVN()} =====`);
+                console.log('[SePay Raw Body]:', body);
+
                 const data = JSON.parse(body);
-                const content = data.content || "";
-                
-                // Tìm mã đơn hàng dạng DHxxx trong nội dung chuyển khoản
-                const match = content.match(/DH(\d+)/i);
+                console.log('[SePay Parsed]:', JSON.stringify(data, null, 2));
+
+                // SePay có thể gửi nội dung trong field 'content' hoặc 'description'
+                const content = (data.content || data.description || data.transaction_content || "").toUpperCase();
+                const transferAmount = data.transferAmount || data.amount || 0;
+
+                console.log(`[SePay] Nội dung CK: "${content}" | Số tiền: ${transferAmount}`);
+
+                // Tìm mã đơn hàng dạng DH + số (ví dụ: DH42, DH123)
+                const match = content.match(/DH(\d+)/);
                 if (match) {
-                    const orderId = match[1];
-                    // Cập nhật trạng thái đơn hàng thành 'sepay'
+                    const orderId = parseInt(match[1]);
+                    console.log(`[SePay] ✅ Tìm thấy đơn hàng #${orderId} - Đang cập nhật...`);
                     await runSQL(`UPDATE orders SET status='sepay' WHERE id=${orderId}`);
-                    console.log(`[SePay Webhook] Đã cập nhật đơn hàng #${orderId} thành sepay.`);
+                    console.log(`[SePay] ✅ Đã cập nhật đơn hàng #${orderId} thành 'sepay'.`);
+                } else {
+                    console.log(`[SePay] ⚠️  Không tìm thấy mã DH trong nội dung: "${content}"`);
                 }
-                
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true }));
             } catch (e) {
-                console.error("Webhook Error:", e);
-                res.writeHead(500); res.end(JSON.stringify({ success: false }));
+                console.error('[SePay Webhook Error]:', e.message);
+                console.error('[SePay Raw Body was]:', body);
             }
         });
         return;

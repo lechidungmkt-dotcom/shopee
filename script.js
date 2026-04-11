@@ -7,6 +7,16 @@ const SEPAY_STK = "80002345939";
 const SEPAY_BANK = "MSB";
 const SEPAY_ACCOUNT_NAME = "QUACH THAI UYEN"; // Bạn có thể sửa đúng tên mình
 
+// Helper: Lấy ngày giờ hiện tại theo múi giờ Việt Nam (GMT+7)
+function getNowVN() {
+    const now = new Date();
+    const offset = 7 * 60;
+    const localMs = now.getTime() + (offset * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
+    const d = new Date(localMs);
+    const pad = n => String(n).padStart(2, '0');
+    return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
 
 // UI Tương tác Hình ảnh
 const mainVideoContainer = document.getElementById('main-video');
@@ -188,7 +198,7 @@ window.submitForm = function (e) {
         product: "Đệm Thông Gió Làm Mát Rulax",
         quantity: cartQty,
         total_price: cartQty * PRICE,
-        date: new Date().toLocaleString()
+        date: getNowVN()
     };
 
     // Điền thông tin lên bảng Confirm
@@ -317,7 +327,7 @@ window.submitWaitlist = function (e) {
         drivingTime: document.querySelector('input[name="wl-time"]:checked').value,
         sweatingCondition: document.querySelector('input[name="wl-sweat"]:checked').value,
         carModel: document.getElementById('wl-car').value,
-        date: new Date().toLocaleString()
+        date: getNowVN()
     };
 
     // Gửi song song tới Server cục bộ (nếu có) và Google App Script Webhook
