@@ -72,8 +72,7 @@ function escapeSQL(val) {
 function executePythonSQL(sql, isQuery) {
     return new Promise((resolve, reject) => {
         const scriptPath = path.join(__dirname, 'sqlite_runner.py');
-        if (!fs.existsSync(scriptPath)) {
-            const pyCode = `
+        const pyCode = `
 import sqlite3, json, sys, io
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
@@ -96,8 +95,7 @@ except Exception as e:
     sys.stderr.write(str(e))
     sys.exit(1)
 `;
-            fs.writeFileSync(scriptPath, pyCode);
-        }
+        fs.writeFileSync(scriptPath, pyCode);
 
         const cp = require('child_process');
         const child = cp.spawn('python', [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
