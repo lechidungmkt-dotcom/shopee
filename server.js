@@ -85,14 +85,13 @@ try:
     cursor = conn.cursor()
     if not is_query:
         cursor.executescript(sql)
+        sys.stdout.write(json.dumps({"success": True}))
     else:
         cursor.execute(sql)
         columns = [col[0] for col in cursor.description] if cursor.description else []
         data = [dict(zip(columns, row)) for row in cursor.fetchall()]
         sys.stdout.write(json.dumps(data))
-    else:
         conn.commit()
-        sys.stdout.write(json.dumps({"success": True}))
 except Exception as e:
     sys.stderr.write(str(e))
     sys.exit(1)
