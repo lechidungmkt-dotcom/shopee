@@ -198,15 +198,16 @@ const server = http.createServer(async (req, res) => {
             try {
                 const data = JSON.parse(body);
                 // Gộp thông tin khảo sát vào Ghi chú
-                const surveyNotes = `Khảo sát: Lái xe ${data.drivingTime}, Nóng lưng: ${data.sweatingCondition}, Xe: ${data.carModel}`;
-                
+                const surveyNotes = `Khảo sát: Lái xe ${data.drivingTime || '?'}, Nóng lưng: ${data.sweatingCondition || '?'}, Xe: ${data.carModel || '?'}`;
+                const regDate = data.date || getNowVN();
+
                 // Kiểm tra xem khách đã tồn tại chưa (theo SĐT)
                 const existing = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(data.phone)}`);
                 
                 if (existing.length > 0) {
                     await runSQL(`UPDATE customers SET email = ${escapeSQL(data.email)}, notes = ${escapeSQL(surveyNotes)} WHERE id = ${existing[0].id}`);
                 } else {
-                    await runSQL(`INSERT INTO customers (name, phone, email, registration_date, notes) VALUES (${escapeSQL(data.name)}, ${escapeSQL(data.phone)}, ${escapeSQL(data.email)}, ${escapeSQL(data.date)}, ${escapeSQL(surveyNotes)})`);
+                    await runSQL(`INSERT INTO customers (name, phone, email, registration_date, notes) VALUES (${escapeSQL(data.name)}, ${escapeSQL(data.phone)}, ${escapeSQL(data.email)}, ${escapeSQL(regDate)}, ${escapeSQL(surveyNotes)})`);
                 }
                 
                 // --- KÍCH HOẠT SEQUENCE TỰ ĐỘNG GỬI EMAIL ---
@@ -308,7 +309,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url === '/api/orders') {
         if (req.method === 'GET') {
             try {
-                const data = await queryDB("SELECT o.*, c.name as customer_name, p.name as product_name FROM orders o JOIN customers c ON o.customer_id = c.id JOIN products p ON o.product_id = p.id");
+                const data = await queryDB("SELECT o.*, c.name as customer_name, p.name as product_name FROM orders o JOIN customers c ON o.customer_id = c.id JOIN products p ON o.product_id = p.id ORDER BY o.id DESC");
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify(data));
             } catch (e) { res.writeHead(500); res.end(String(e)); }
@@ -332,7 +333,7 @@ const server = http.createServer(async (req, res) => {
                                 }
                             } else {
                                 // Tạo khách mới nếu chưa có
-                                await runSQL(`INSERT INTO customers (name, phone, email, registration_date) VALUES (${escapeSQL(o.name)}, ${escapeSQL(o.phone)}, ${escapeSQL(o.email)}, ${escapeSQL(o.date)})`);
+                                await runSQL(`INSERT INTO customers (name, phone, email, registration_date) VALUES (${escapeSQL(o.name)}, ${escapeSQL(o.phone)}, ${escapeSQL(o.email || '')}, ${escapeSQL(o.date || getNowVN())})`);
                                 const newC = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(o.phone)}`);
                                 customerId = newC[0].id;
                             }
@@ -341,11 +342,11 @@ const server = http.createServer(async (req, res) => {
                         // Tìm sản phẩm mặc định nếu cần (hoặc từ Website gửi về)
                         let productId = o.product_id || 1; 
 
-                        const qty = o.quantity || 1;
+                        const qty = parseInt(o.quantity) || 1;
                         // Dùng ngày từ client, hoặc fallback về giờ máy chủ (GMT+7)
                         const orderDate = (o.date || o.order_date) ? (o.date || o.order_date) : getNowVN();
                         // Do python sqlite3 execute() không chạy script cộp, tách ra 2 câu lệnh
-                        await runSQL(`INSERT INTO orders (customer_id, product_id, amount, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(orderDate)})`);
+                        await runSQL(`INSERT INTO orders (customer_id, product_id, amount, quantity, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${qty}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(orderDate)})`);
                         const dbResult = await queryDB(`SELECT id FROM orders WHERE customer_id = ${customerId} ORDER BY id DESC LIMIT 1`);
                         await runSQL(`UPDATE products SET stock = stock - ${qty} WHERE id = ${productId}`);
                         
@@ -522,6 +523,7 @@ async function initDatabase() {
             customer_id INTEGER NOT NULL,
             product_id INTEGER NOT NULL,
             amount REAL NOT NULL,
+            quantity INTEGER DEFAULT 1,
             status TEXT DEFAULT 'Pending',
             order_date TEXT,
             FOREIGN KEY(customer_id) REFERENCES customers(id),
