@@ -193,6 +193,7 @@ window.submitForm = function (e) {
         form_type: "ORDER", // Đánh dấu đây là dữ liệu đặt hàng
         name: document.getElementById('cname').value,
         phone: phoneVal,
+        email: document.getElementById('cemail').value,
         address: document.getElementById('caddress').value,
         notes: document.getElementById('cnotes').value,
         product: "Đệm Thông Gió Làm Mát Rulax",
@@ -324,6 +325,7 @@ window.submitWaitlist = function (e) {
         form_type: "WAITLIST", // Thêm cờ phân biệt biểu mẫu
         name: document.getElementById('wl-name').value,
         phone: document.getElementById('wl-phone').value,
+        email: document.getElementById('wl-email').value,
         drivingTime: document.querySelector('input[name="wl-time"]:checked').value,
         sweatingCondition: document.querySelector('input[name="wl-sweat"]:checked').value,
         carModel: document.getElementById('wl-car').value,

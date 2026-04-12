@@ -213,6 +213,7 @@
                                 <th width="50">ID</th>
                                 <th>Họ tên</th>
                                 <th>Số điện thoại</th>
+                                <th>Email</th>
                                 <th width="200">Ghi chú / Khảo sát</th>
                                 <th>Ngày đăng ký</th>
                                 <th>Thao tác</th>
@@ -296,6 +297,10 @@
                     <input type="text" id="c-phone" required>
                 </div>
                 <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" id="c-email">
+                </div>
+                <div class="form-group">
                     <label>Zalo</label>
                     <input type="text" id="c-zalo">
                 </div>
@@ -359,6 +364,11 @@
         let allCustomers = [];
 
         async function apiReq(url, method = 'GET', data = null) {
+            if (window.location.protocol === 'file:') {
+                alert("❌ LỖI: Bạn đang mở trang web dưới dạng File cục bộ (nháy đúp vào file).\n\nĐể trang quản trị hoặc website hoạt động, bạn BẮT BUỘC phải mở link: http://localhost:3000/admin (hoặc http://localhost:3000) trên trình duyệt sau khi đã bật start_server.bat.");
+                throw new Error('Chạy dưới dạng file cục bộ');
+            }
+
             const options = { method, headers: { 'Content-Type': 'application/json' } };
             if (data) options.body = JSON.stringify(data);
             
@@ -374,7 +384,11 @@
                 }
                 return await res.json();
             } catch (e) {
-                alert("❌ Lỗi: " + e.message);
+                if (e.message === 'Failed to fetch') {
+                    alert("❌ Lỗi: Không thể kết nối tới Server. Đảm bảo bạn đã chạy 'start_server.bat' và đang vào từ http://localhost:3000 !");
+                } else {
+                    alert("❌ Lỗi: " + e.message);
+                }
                 throw e;
             }
         }
@@ -421,6 +435,7 @@
                     <td>${c.id}</td>
                     <td><b>${c.name}</b></td>
                     <td>${c.phone}</td>
+                    <td>${c.email || '-'}</td>
                     <td><div class="notes-preview" title="${c.notes || ''}">${c.notes || '-'}</div></td>
                     <td>${displayDate}</td>
                     <td>
@@ -512,6 +527,7 @@
             document.getElementById('c-id').value = c.id;
             document.getElementById('c-name').value = c.name;
             document.getElementById('c-phone').value = c.phone;
+            document.getElementById('c-email').value = c.email || '';
             document.getElementById('c-zalo').value = c.zalo;
             document.getElementById('c-notes').value = c.notes || '';
             document.getElementById('modal-customer').style.display = 'flex';
@@ -522,6 +538,7 @@
                 id: document.getElementById('c-id').value,
                 name: document.getElementById('c-name').value,
                 phone: document.getElementById('c-phone').value,
+                email: document.getElementById('c-email').value,
                 zalo: document.getElementById('c-zalo').value,
                 notes: document.getElementById('c-notes').value,
                 registration_date: new Date().toLocaleDateString()

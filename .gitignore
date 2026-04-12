@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Database
+brain.db
+*.sqlite
+*.sqlite3
+*.db
+
+# API Keys / Secrets
+resend_config.txt
+.env
+
+# OS Files
+.DS_Store
+Thumbs.db
