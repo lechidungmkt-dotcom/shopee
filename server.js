@@ -98,23 +98,37 @@ except Exception as e:
         fs.writeFileSync(scriptPath, pyCode);
 
         const cp = require('child_process');
-        const child = cp.spawn('python', [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', d => stdout += d.toString());
-        child.stderr.on('data', d => stderr += d.toString());
+        // Thử dùng python3 trước (chuẩn Linux/Render), nếu lỗi thì dùng python
+        let pythonCmd = 'python3';
+        const child = cp.spawn(pythonCmd, [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
         
-        child.stdin.write(sql);
-        child.stdin.end();
-        
-        child.on('close', code => {
-            if (code !== 0) return reject(new Error(stderr || "Python Error " + code));
-            try {
-                resolve(JSON.parse(stdout));
-            } catch (e) {
-                resolve([]);
+        child.on('error', (err) => {
+            if (err.code === 'ENOENT') {
+                // Nếu không có python3, thử dùng python
+                const child2 = cp.spawn('python', [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
+                setupChildListeners(child2, resolve, reject, sql);
+            } else {
+                reject(err);
             }
         });
+
+        if (child.pid) {
+            setupChildListeners(child, resolve, reject, sql);
+        }
+
+        function setupChildListeners(proc, res, rej, sqlInput) {
+            let stdout = '';
+            let stderr = '';
+            proc.stdout.on('data', d => stdout += d.toString());
+            proc.stderr.on('data', d => stderr += d.toString());
+            proc.stdin.write(sqlInput);
+            proc.stdin.end();
+            proc.on('close', code => {
+                if (code !== 0) return rej(new Error(stderr || "Python Error " + code));
+                try { res(JSON.parse(stdout)); }
+                catch (e) { res([]); }
+            });
+        }
     });
 }
 
@@ -188,6 +202,26 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === 'OPTIONS') {
         res.writeHead(200); res.end(); return;
+    }
+
+    // --- API: HEALTH CHECK (KIỂM TRA SỨC KHỎE SERVER) ---
+    if (req.url === '/api/health') {
+        try {
+            const dbCheck = await queryDB("SELECT 1 as status");
+            const pythonVersion = await new Promise(r => {
+                require('child_process').exec('python3 --version || python --version', (err, stdout) => r(stdout.trim() || "Unknown"));
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                status: "OK", 
+                database: dbCheck.length > 0 ? "Connected" : "Error",
+                python: pythonVersion,
+                time: getNowVN()
+            }));
+        } catch (e) {
+            res.writeHead(500); res.end(JSON.stringify({ status: "Error", message: String(e) }));
+        }
+        return;
     }
 
     // --- API: WAITLIST (FROM WEBSITE FORM) ---
