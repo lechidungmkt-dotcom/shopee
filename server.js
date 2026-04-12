@@ -551,6 +551,17 @@ async function initDatabase() {
     `;
     await runSQL(initSql);
 
+    // MIGRATION: Tự động thêm cột email nếu bảng cũ chưa có
+    try {
+        await runSQL(`ALTER TABLE customers ADD COLUMN email TEXT`);
+        console.log("🛠️ Migration: Đã thêm cột email vào bảng customers.");
+    } catch (e) {
+        // Lỗi "duplicate column" là bình thường nếu cột đã tồn tại — bỏ qua
+        if (!String(e).includes('duplicate column')) {
+            console.warn("Migration email warning:", e.message || e);
+        }
+    }
+
     const checkProduct = await queryDB("SELECT * FROM products WHERE id=1");
     if (checkProduct.length === 0) {
         await runSQL(`INSERT INTO products (name, price, stock) VALUES ('Đệm Thông Gió Làm Mát Rulax', 959000, 100)`);
