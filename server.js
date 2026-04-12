@@ -22,7 +22,9 @@ try {
 const SEPAY_API_KEY = "K2AJXHECOHBZJQDMNLSX0J36A7IS8BKWTCGRV11AIBQRO4DSG4YJFZ7PIK3Y5BFX";
 const SEPAY_ACCOUNT = "80002345939";
 
-// Gọi API SePay để lấy danh sách giao dịch gần nhất
+// FIX BUG 4: Dùng biến môi trường SITE_URL để link email không trỏ về localhost
+const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
+
 function fetchSepayTransactions() {
     return new Promise((resolve, reject) => {
         const options = {
@@ -49,18 +51,17 @@ function fetchSepayTransactions() {
 
 const PORT = process.env.PORT || 3000;
 
-// Helper: Lấy ngày giờ hiện tại theo múi giờ Việt Nam (GMT+7)
 function getNowVN() {
     const now = new Date();
-    const offset = 7 * 60; // GMT+7 in minutes
+    const offset = 7 * 60;
     const localMs = now.getTime() + (offset * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000);
     const d = new Date(localMs);
     const pad = n => String(n).padStart(2, '0');
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
+
 const DB_PATH = path.join(__dirname, 'brain.db');
 
-// Helper to escape single quotes for SQLite
 function escapeSQL(val) {
     if (val === null || val === undefined) return "NULL";
     if (typeof val === 'string') {
@@ -69,9 +70,12 @@ function escapeSQL(val) {
     return val;
 }
 
+// FIX BUG 3: Viết lại executePythonSQL — dùng conn.commit() đúng cách, không dùng executescript() cho non-query
 function executePythonSQL(sql, isQuery) {
     return new Promise((resolve, reject) => {
         const scriptPath = path.join(__dirname, 'sqlite_runner.py');
+
+        // FIX: dùng cursor.execute() cho query, conn.executescript() + conn.commit() cho non-query
         const pyCode = `
 import sqlite3, json, sys, io
 sys.stdin = io.TextIOWrapper(sys.stdin.buffer, encoding='utf-8')
@@ -82,15 +86,16 @@ try:
     sql = sys.stdin.read()
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
-    if not is_query:
-        cursor.executescript(sql)
-        sys.stdout.write(json.dumps({"success": True}))
-    else:
+    if is_query:
         cursor.execute(sql)
         columns = [col[0] for col in cursor.description] if cursor.description else []
         data = [dict(zip(columns, row)) for row in cursor.fetchall()]
         sys.stdout.write(json.dumps(data))
+    else:
+        conn.executescript(sql)
         conn.commit()
+        sys.stdout.write(json.dumps({"success": True}))
+    conn.close()
 except Exception as e:
     sys.stderr.write(str(e))
     sys.exit(1)
@@ -98,13 +103,11 @@ except Exception as e:
         fs.writeFileSync(scriptPath, pyCode);
 
         const cp = require('child_process');
-        // Thử dùng python3 trước (chuẩn Linux/Render), nếu lỗi thì dùng python
         let pythonCmd = 'python3';
         const child = cp.spawn(pythonCmd, [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
-        
+
         child.on('error', (err) => {
             if (err.code === 'ENOENT') {
-                // Nếu không có python3, thử dùng python
                 const child2 = cp.spawn('python', [scriptPath, DB_PATH, isQuery ? 'true' : 'false']);
                 setupChildListeners(child2, resolve, reject, sql);
             } else {
@@ -140,7 +143,7 @@ async function sendResendEmail(toEmail, subject, htmlContent) {
     if (!resend) return console.warn("Bỏ qua gửi email do chưa có Resend API Key.");
     try {
         const data = await resend.emails.send({
-            from: 'onboarding@resend.dev', // Resend free tier chỉ cho gửi từ onboarding
+            from: 'onboarding@resend.dev',
             to: toEmail,
             subject: subject,
             html: htmlContent
@@ -155,10 +158,9 @@ function startEmailSequence(customerName, customerEmail) {
     if (!customerEmail) return;
 
     let isTest = customerEmail.includes('+test');
-    
-    // Test: 10 giây. Thật: 2 ngày và 1 ngày
+
     let delay2Days = isTest ? 10 * 1000 : 2 * 24 * 60 * 60 * 1000;
-    let delay1Day =  isTest ? 10 * 1000 : 1 * 24 * 60 * 60 * 1000;
+    let delay1Day  = isTest ? 10 * 1000 : 1 * 24 * 60 * 60 * 1000;
 
     const email1 = {
         subject: "Cảm ơn anh em đã quan tâm. Hẹn gặp lại sớm!",
@@ -170,23 +172,21 @@ function startEmailSequence(customerName, customerEmail) {
         html: `Chào anh em,<br><br>Tôi chắc chắn anh em từng gặp tình huống này: Bước lên xe buổi trưa nắng, bật điều hòa lên mức lạnh nhất, gió quạt ù ù thẳng vào mặt. Trán thì lạnh toát, nhưng lưng và hông thì vẫn ươn ướt, dính dớp mồ hôi.<br><br>Nguyên nhân cực kỳ đơn giản: Phom ghế ô tô luôn thiết kế ôm sát cơ thể. Toàn bộ phần lưng và mông của anh em áp chặt vào mặt da. Luồng khí lạnh từ điều hòa trên taplo không bao giờ có thể chui vào được khoảng không gian kín bưng đó. Không có gió đi qua -> cơ thể không tản nhiệt được -> mồ hôi tự động đổ ra.<br><br>Nhiều anh em mua mấy cái đệm hạt gỗ, đệm trúc... Nó chỉ tạo ra một tí xíu khe hở thụ động thôi, ngồi lâu vẫn bí như thường vì không có luồng khí chủ động đẩy hơi nóng ra ngoài.<br><br>Giải pháp thực tế nhất là phải tạo ra khe hở đủ lớn (bằng cấu trúc lưới 3D) và dùng quạt hút/đẩy luồng gió đi liên tục qua khe hở đó. Chỉ có cách đấy mới làm bề mặt da anh em khô ráo được.<br><br>Anh em đọc kỹ lưu ý này để sau này có chọn đồ chống nóng cho xe thì cũng không bị lãng phí tiền vô ích vào mấy món không hiệu quả.<br><br>Hẹn anh em ở email tới.<br><br>Tôi,<br>Đại diện Rulax Việt Nam.`
     };
 
+    // FIX BUG 4: Link email dùng SITE_URL thay vì hardcode localhost
     const email3 = {
         subject: "Xử lý dứt điểm mồ hôi lưng với Rulax - Ưu đãi chỉ dành cho anh em",
-        html: `Chào anh em,<br><br>Hôm nay tôi vào thẳng vấn đề luôn. Nếu anh em đã quá ngán ngẩm cái cảnh mồ hôi dính bết lưng áo mỗi lần xuống xe, Đệm Thông Gió Làm Mát Ghế Ô Tô Rulax Cao Cấp chính là thứ anh em cần.<br><br>Cơ chế rất rõ ràng:<br>1. Đệm dùng lưới tổ ong 3D siêu đàn hồi tạo khe hở không xẹp, kết hợp cùng hệ thống quạt công suất cao thổi luồng khí tản đều khắp lưng và mông. <br>2. Làm mát siêu tốc trong 3 giây. Chấm dứt 100% tình trạng đổ mồ hôi lưng.<br>3. Tích hợp chế độ massage rung kép giúp anh em thư giãn, tránh đau mỏi cột sống khi đi đường dài.<br>4. Nguồn điện tẩu sạc 12V phổ thông, cắm là chạy, không can thiệp độ chế bất cứ chi tiết nguyên bản nào của xe.<br><br>Tôi đang có chương trình Flash Sale Nửa Giá cực tốt. Vì anh em đã đăng ký tham gia khảo sát trước, tôi ưu tiên một suất giữ giá tốt nhất đợt này.<br><br>Anh em bấm vào link bên dưới để xem chi tiết ảnh thực tế và đặt hàng ngay đợt Flash Sale nhé:<br>👉 <a href="http://localhost:3000">XEM CHI TIẾT VÀ ĐẶT MUA RULAX NGAY</a><br><br>Nhận hàng, cắm thử bật quạt thấy mát tận lưng mới phải thanh toán. Anh em hoàn toàn yên tâm.<br><br>Hẹn anh em sớm.<br><br>Tôi,<br>Đại diện Rulax Việt Nam.`
+        html: `Chào anh em,<br><br>Hôm nay tôi vào thẳng vấn đề luôn. Nếu anh em đã quá ngán ngẩm cái cảnh mồ hôi dính bết lưng áo mỗi lần xuống xe, Đệm Thông Gió Làm Mát Ghế Ô Tô Rulax Cao Cấp chính là thứ anh em cần.<br><br>Cơ chế rất rõ ràng:<br>1. Đệm dùng lưới tổ ong 3D siêu đàn hồi tạo khe hở không xẹp, kết hợp cùng hệ thống quạt công suất cao thổi luồng khí tản đều khắp lưng và mông. <br>2. Làm mát siêu tốc trong 3 giây. Chấm dứt 100% tình trạng đổ mồ hôi lưng.<br>3. Tích hợp chế độ massage rung kép giúp anh em thư giãn, tránh đau mỏi cột sống khi đi đường dài.<br>4. Nguồn điện tẩu sạc 12V phổ thông, cắm là chạy, không can thiệp độ chế bất cứ chi tiết nguyên bản nào của xe.<br><br>Tôi đang có chương trình Flash Sale Nửa Giá cực tốt. Vì anh em đã đăng ký tham gia khảo sát trước, tôi ưu tiên một suất giữ giá tốt nhất đợt này.<br><br>Anh em bấm vào link bên dưới để xem chi tiết ảnh thực tế và đặt hàng ngay đợt Flash Sale nhé:<br>👉 <a href="${SITE_URL}">XEM CHI TIẾT VÀ ĐẶT MUA RULAX NGAY</a><br><br>Nhận hàng, cắm thử bật quạt thấy mát tận lưng mới phải thanh toán. Anh em hoàn toàn yên tâm.<br><br>Hẹn anh em sớm.<br><br>Tôi,<br>Đại diện Rulax Việt Nam.`
     };
 
     console.log(`>>> Bắt đầu Sequence cho ${customerEmail}. Test Mode: ${isTest}`);
     let targetEmail = isTest ? customerEmail.replace('+test', '') : customerEmail;
-    
-    // 1. Gửi Email 1 ngay lập tức
+
     sendResendEmail(targetEmail, email1.subject, email1.html);
 
-    // 2. Schedule Email 2
     setTimeout(() => {
         console.log(`>>> Chạy tiếp sequence gửi E2 cho ${customerEmail}`);
         sendResendEmail(targetEmail, email2.subject, email2.html);
 
-        // 3. Schedule Email 3
         setTimeout(() => {
             console.log(`>>> Chạy tiếp sequence gửi E3 cho ${customerEmail}`);
             sendResendEmail(targetEmail, email3.subject, email3.html);
@@ -204,7 +204,7 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200); res.end(); return;
     }
 
-    // --- API: HEALTH CHECK (KIỂM TRA SỨC KHỎE SERVER) ---
+    // --- API: HEALTH CHECK ---
     if (req.url === '/api/health') {
         try {
             const dbCheck = await queryDB("SELECT 1 as status");
@@ -212,8 +212,8 @@ const server = http.createServer(async (req, res) => {
                 require('child_process').exec('python3 --version || python --version', (err, stdout) => r(stdout.trim() || "Unknown"));
             });
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ 
-                status: "OK", 
+            res.end(JSON.stringify({
+                status: "OK",
                 database: dbCheck.length > 0 ? "Connected" : "Error",
                 python: pythonVersion,
                 time: getNowVN()
@@ -224,30 +224,26 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // --- API: WAITLIST (FROM WEBSITE FORM) ---
+    // --- API: WAITLIST ---
     if (req.url === '/api/waitlist' && req.method === 'POST') {
         let body = '';
         req.on('data', c => body += c);
         req.on('end', async () => {
             try {
                 const data = JSON.parse(body);
-                // Gộp thông tin khảo sát vào Ghi chú
                 const surveyNotes = `Khảo sát: Lái xe ${data.drivingTime || '?'}, Nóng lưng: ${data.sweatingCondition || '?'}, Xe: ${data.carModel || '?'}`;
                 const regDate = data.date || getNowVN();
 
-                // Kiểm tra xem khách đã tồn tại chưa (theo SĐT)
                 const existing = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(data.phone)}`);
-                
+
                 if (existing.length > 0) {
                     await runSQL(`UPDATE customers SET email = ${escapeSQL(data.email)}, notes = ${escapeSQL(surveyNotes)} WHERE id = ${existing[0].id}`);
                 } else {
                     await runSQL(`INSERT INTO customers (name, phone, email, registration_date, notes) VALUES (${escapeSQL(data.name)}, ${escapeSQL(data.phone)}, ${escapeSQL(data.email)}, ${escapeSQL(regDate)}, ${escapeSQL(surveyNotes)})`);
                 }
-                
-                // --- KÍCH HOẠT SEQUENCE TỰ ĐỘNG GỬI EMAIL ---
+
                 startEmailSequence(data.name, data.email);
-                
-                
+
                 res.writeHead(200, { 'Content-Type': 'application/json' });
                 res.end(JSON.stringify({ success: true }));
             } catch (e) {
@@ -355,54 +351,49 @@ const server = http.createServer(async (req, res) => {
                 try {
                     if (o.id) {
                         await runSQL(`UPDATE orders SET status=${escapeSQL(o.status)} WHERE id=${o.id}`);
-                    } else {
-                        // Nếu thiếu customer_id, thử tìm theo Phone (đơn hàng từ Website)
-                        let customerId = o.customer_id;
-                        if (!customerId && o.phone) {
-                            const c = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(o.phone)}`);
-                            if (c.length > 0) {
-                                customerId = c[0].id;
-                                if (o.email) {
-                                    await runSQL(`UPDATE customers SET email = ${escapeSQL(o.email)} WHERE id = ${customerId}`);
-                                }
-                            } else {
-                                // Tạo khách mới nếu chưa có
-                                await runSQL(`INSERT INTO customers (name, phone, email, registration_date) VALUES (${escapeSQL(o.name)}, ${escapeSQL(o.phone)}, ${escapeSQL(o.email || '')}, ${escapeSQL(o.date || getNowVN())})`);
-                                const newC = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(o.phone)}`);
-                                customerId = newC[0].id;
-                            }
-                        }
-
-                        // Tìm sản phẩm mặc định nếu cần (hoặc từ Website gửi về)
-                        let productId = o.product_id || 1; 
-
-                        const qty = parseInt(o.quantity) || 1;
-                        // Dùng ngày từ client, hoặc fallback về giờ máy chủ (GMT+7)
-                        const orderDate = (o.date || o.order_date) ? (o.date || o.order_date) : getNowVN();
-                        // Do python sqlite3 execute() không chạy script cộp, tách ra 2 câu lệnh
-                        await runSQL(`INSERT INTO orders (customer_id, product_id, amount, quantity, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${qty}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(orderDate)})`);
-                        const dbResult = await queryDB(`SELECT id FROM orders WHERE customer_id = ${customerId} ORDER BY id DESC LIMIT 1`);
-                        await runSQL(`UPDATE products SET stock = stock - ${qty} WHERE id = ${productId}`);
-                        
-                        const orderId = dbResult[0]?.id;
-
-                        // -- GỬI EMAIL XÁC NHẬN ĐƠN HÀNG --
-                        if (o.email) {
-                            let isTest = o.email.includes('+test');
-                            let targetEmail = isTest ? o.email.replace('+test', '') : o.email;
-                            const confirmSubject = `[Rulax] Xác nhận đặt hàng thành công (#${orderId || Math.floor(Math.random()*1000)})`;
-                            const confirmHtml = `Chào ${o.name},<br><br>Cảm ơn bạn đã tin tưởng và đặt mua Đệm Thông Gió Rulax.<br><br><b>Thông tin đơn hàng của bạn:</b><br>- Sản phẩm: ${o.product || "Đệm Thông Gió Làm Mát Rulax"}<br>- Số lượng: ${qty}<br>- Tổng thanh toán: ${Number(o.total_price || o.amount).toLocaleString('vi-VN')}₫<br>- Hình thức: ${o.payment_status || 'COD'}<br><br>Đơn hàng của bạn sẽ sớm được đóng gói và giao tới địa chỉ: <i>${o.address || 'Đã cung cấp'}</i>.<br><br>Trân trọng,<br>Rulax Việt Nam.`;
-                            sendResendEmail(targetEmail, confirmSubject, confirmHtml);
-                        }
-
-                        res.writeHead(200, { 'Content-Type': 'application/json' });
-                        res.end(JSON.stringify({ success: true, id: orderId }));
+                        res.writeHead(200); res.end(JSON.stringify({ success: true }));
                         return;
                     }
-                    res.writeHead(200); res.end(JSON.stringify({ success: true }));
-                } catch (e) { 
+
+                    // Tạo đơn mới từ website
+                    let customerId = o.customer_id;
+                    if (!customerId && o.phone) {
+                        const c = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(o.phone)}`);
+                        if (c.length > 0) {
+                            customerId = c[0].id;
+                            if (o.email) {
+                                await runSQL(`UPDATE customers SET email = ${escapeSQL(o.email)} WHERE id = ${customerId}`);
+                            }
+                        } else {
+                            await runSQL(`INSERT INTO customers (name, phone, email, registration_date) VALUES (${escapeSQL(o.name)}, ${escapeSQL(o.phone)}, ${escapeSQL(o.email || '')}, ${escapeSQL(o.date || getNowVN())})`);
+                            const newC = await queryDB(`SELECT id FROM customers WHERE phone = ${escapeSQL(o.phone)}`);
+                            customerId = newC[0].id;
+                        }
+                    }
+
+                    let productId = o.product_id || 1;
+                    const qty = parseInt(o.quantity) || 1;
+                    const orderDate = (o.date || o.order_date) ? (o.date || o.order_date) : getNowVN();
+
+                    await runSQL(`INSERT INTO orders (customer_id, product_id, amount, quantity, status, order_date) VALUES (${customerId}, ${productId}, ${o.total_price || o.amount}, ${qty}, ${escapeSQL(o.payment_status || o.status)}, ${escapeSQL(orderDate)})`);
+                    const dbResult = await queryDB(`SELECT id FROM orders WHERE customer_id = ${customerId} ORDER BY id DESC LIMIT 1`);
+                    await runSQL(`UPDATE products SET stock = stock - ${qty} WHERE id = ${productId}`);
+
+                    const orderId = dbResult[0]?.id;
+
+                    if (o.email) {
+                        let isTest = o.email.includes('+test');
+                        let targetEmail = isTest ? o.email.replace('+test', '') : o.email;
+                        const confirmSubject = `[Rulax] Xác nhận đặt hàng thành công (#${orderId || Math.floor(Math.random()*1000)})`;
+                        const confirmHtml = `Chào ${o.name},<br><br>Cảm ơn bạn đã tin tưởng và đặt mua Đệm Thông Gió Rulax.<br><br><b>Thông tin đơn hàng của bạn:</b><br>- Sản phẩm: ${o.product || "Đệm Thông Gió Làm Mát Rulax"}<br>- Số lượng: ${qty}<br>- Tổng thanh toán: ${Number(o.total_price || o.amount).toLocaleString('vi-VN')}₫<br>- Hình thức: ${o.payment_status || 'COD'}<br><br>Đơn hàng của bạn sẽ sớm được đóng gói và giao tới địa chỉ: <i>${o.address || 'Đã cung cấp'}</i>.<br><br>Trân trọng,<br>Rulax Việt Nam.`;
+                        sendResendEmail(targetEmail, confirmSubject, confirmHtml);
+                    }
+
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify({ success: true, id: orderId }));
+                } catch (e) {
                     console.error("Order API Error:", e);
-                    res.writeHead(500); res.end(JSON.stringify({ error: String(e) })); 
+                    res.writeHead(500); res.end(JSON.stringify({ error: String(e) }));
                 }
             });
         }
@@ -423,7 +414,6 @@ const server = http.createServer(async (req, res) => {
         let body = '';
         req.on('data', c => body += c);
         req.on('end', async () => {
-            // Luôn trả về 200 trước để SePay không retry
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true }));
 
@@ -434,13 +424,11 @@ const server = http.createServer(async (req, res) => {
                 const data = JSON.parse(body);
                 console.log('[SePay Parsed]:', JSON.stringify(data, null, 2));
 
-                // SePay có thể gửi nội dung trong field 'content' hoặc 'description'
                 const content = (data.content || data.description || data.transaction_content || "").toUpperCase();
                 const transferAmount = data.transferAmount || data.amount || 0;
 
                 console.log(`[SePay] Nội dung CK: "${content}" | Số tiền: ${transferAmount}`);
 
-                // Tìm mã đơn hàng dạng DH + số (ví dụ: DH42, DH123)
                 const match = content.match(/DH(\d+)/);
                 if (match) {
                     const orderId = parseInt(match[1]);
@@ -458,14 +446,13 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // --- API: CHECK PAYMENT (CHỦ ĐỘNG HỎI SEPAY API) ---
+    // --- API: CHECK PAYMENT ---
     if (req.url.startsWith('/api/check-payment') && req.method === 'GET') {
         const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
         const orderId = urlParams.get('id');
         const description = (urlParams.get('desc') || '').toUpperCase();
 
         try {
-            // 1. Kiểm tra trong DB trước (nếu webhook đã cập nhật sẵn rồi)
             const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
             if (dbData[0]?.status === 'sepay') {
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -473,7 +460,6 @@ const server = http.createServer(async (req, res) => {
                 return;
             }
 
-            // 2. Chủ động hỏi SePay API để tìm giao dịch khớp
             const sepayData = await fetchSepayTransactions();
             console.log(`[CheckPayment] Hỏi SePay API cho đơn #${orderId}, tìm nội dung: "${description}"`);
 
@@ -494,7 +480,6 @@ const server = http.createServer(async (req, res) => {
             }
         } catch (e) {
             console.error('[CheckPayment Error]:', e.message);
-            // Fallback về check DB nếu SePay API lỗi
             try {
                 const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
                 res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -509,11 +494,11 @@ const server = http.createServer(async (req, res) => {
     // --- STATIC FILES ---
     let url = req.url === '/' ? '/index.html' : req.url;
     if (url === '/admin') url = '/admin.html';
-    
+
     let filePath = path.join(__dirname, url);
     const extname = path.extname(filePath);
     let contentType = 'text/html';
-    
+
     switch (extname) {
         case '.js': contentType = 'text/javascript'; break;
         case '.css': contentType = 'text/css'; break;
@@ -533,7 +518,7 @@ const server = http.createServer(async (req, res) => {
     });
 });
 
-// Khởi tạo Database nếu mới tinh (Deploy cho Hosting)
+// FIX BUG 2: initDatabase crash rõ ràng nếu DB không khởi tạo được — không âm thầm chạy thiếu bảng
 async function initDatabase() {
     const initSql = `
         CREATE TABLE IF NOT EXISTS products (
@@ -565,7 +550,7 @@ async function initDatabase() {
         );
     `;
     await runSQL(initSql);
-    // Chèn 1 sản phẩm mặc định nếu chưa có
+
     const checkProduct = await queryDB("SELECT * FROM products WHERE id=1");
     if (checkProduct.length === 0) {
         await runSQL(`INSERT INTO products (name, price, stock) VALUES ('Đệm Thông Gió Làm Mát Rulax', 959000, 100)`);
@@ -575,11 +560,18 @@ async function initDatabase() {
     }
 }
 
-initDatabase().then(() => {
-    server.listen(PORT, () => {
-        console.log(`=========================================`);
-        console.log(` Admin Panel: http://localhost:${PORT}/admin`);
-        console.log(` Landing Page: http://localhost:${PORT}/`);
-        console.log(`=========================================`);
+initDatabase()
+    .then(() => {
+        server.listen(PORT, () => {
+            console.log(`=========================================`);
+            console.log(` Admin Panel: http://localhost:${PORT}/admin`);
+            console.log(` Landing Page: http://localhost:${PORT}/`);
+            console.log(` Site URL cho email: ${SITE_URL}`);
+            console.log(`=========================================`);
+        });
+    })
+    .catch(e => {
+        // FIX BUG 2: Crash hẳn thay vì chạy thiếu DB — Render sẽ tự restart
+        console.error("❌ CRITICAL: Không thể khởi tạo Database:", e);
+        process.exit(1);
     });
-});

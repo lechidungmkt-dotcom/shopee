@@ -5,7 +5,7 @@ const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWT7NxnV
 const SEPAY_API_KEY = "K2AJXHECOHBZJQDMNLSX0J36A7IS8BKWTCGRV11AIBQRO4DSG4YJFZ7PIK3Y5BFX";
 const SEPAY_STK = "80002345939";
 const SEPAY_BANK = "MSB";
-const SEPAY_ACCOUNT_NAME = "QUACH THAI UYEN"; // Bạn có thể sửa đúng tên mình
+const SEPAY_ACCOUNT_NAME = "QUACH THAI UYEN";
 
 // Helper: Lấy ngày giờ hiện tại theo múi giờ Việt Nam (GMT+7)
 function getNowVN() {
@@ -17,6 +17,12 @@ function getNowVN() {
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
 }
 
+// Helper: Kiểm tra URL Google Script có hợp lệ không
+function hasGoogleScriptUrl() {
+    return GOOGLE_APP_SCRIPT_URL &&
+        GOOGLE_APP_SCRIPT_URL !== "HIỆN_TẠI_CHƯA_CÓ_LINK" &&
+        GOOGLE_APP_SCRIPT_URL.startsWith("https://");
+}
 
 // UI Tương tác Hình ảnh
 const mainVideoContainer = document.getElementById('main-video');
@@ -74,19 +80,16 @@ async function syncPriceFromCRM() {
 
 function renderDynamicPrices() {
     const formattedPrice = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(PRICE);
-    
-    // Cập nhật giá chính trên trang
+
     const mainPriceEl = document.getElementById('price-main');
     if (mainPriceEl) mainPriceEl.innerText = formattedPrice;
 
-    // Cập nhật giá trong Chatbot script
     const priceFaq = chatbotData.faqs.find(f => f.q.includes("Giá"));
     if (priceFaq) {
         priceFaq.a = `Hiện tại đệm Rulax đang có giá cực ưu đãi là ${formattedPrice} (giá gốc 1.355.000₫). Đây là mức giá quá hời cho một bộ đệm cao cấp có cả làm mát và massage. Anh em nên tranh thủ chốt sớm vì chương trình Flash Sale có hạn.`;
     }
 }
 
-// Chạy đồng bộ ngay khi tải trang
 syncPriceFromCRM();
 
 window.toggleCart = function () {
@@ -105,11 +108,7 @@ window.toggleCart = function () {
 window.addToCart = function () {
     const addQty = parseInt(document.getElementById('qty-input').value) || 1;
     cartQty += addQty;
-
-    // Nảy số trên icon giỏ hàng
     document.getElementById('cart-badge').innerText = cartQty;
-
-    // Mở slide giỏ hàng
     toggleCart();
 }
 
@@ -123,7 +122,6 @@ function renderCartUI() {
         return;
     }
 
-    // Render 1 item chung (vì chỉ có 1 model)
     container.innerHTML = `
         <div class="cart-item">
             <img src="anh1.jpg" alt="Đệm làm mát">
@@ -155,7 +153,7 @@ window.openOrderModal = function () {
         alert("Vui lòng thêm sản phẩm vào giỏ hàng!");
         return;
     }
-    toggleCart(); // Đóng giỏ hàng
+    toggleCart();
     document.getElementById('form-total-qty').innerText = cartQty;
     const total = cartQty * PRICE;
     document.getElementById('form-total-price').innerText = new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(total);
@@ -166,7 +164,6 @@ window.closeOrderModal = function () {
     orderModal.style.display = 'none';
 }
 
-// Thông báo chung
 window.showAlert = function (msg) {
     document.getElementById('alert-message').innerHTML = msg;
     document.getElementById('alert-modal').style.display = 'flex';
@@ -175,22 +172,21 @@ window.closeAlertModal = function () {
     document.getElementById('alert-modal').style.display = 'none';
 }
 
-
 // Biến lưu trữ data tạm chờ xác nhận
 let pendingOrderData = null;
 
-// XỬ LÝ GỬI FORM LÊN GOOGLE SHEET
+// XỬ LÝ GỬI FORM ĐẶT HÀNG
 window.submitForm = function (e) {
-    e.preventDefault(); // chặn hành vi gửi form mặc định
+    e.preventDefault();
 
     const phoneVal = document.getElementById('cphone').value;
     if (!/^[0-9]{10}$/.test(phoneVal)) {
         alert("❌ Lỗi: Số điện thoại không đúng định dạng. Vui lòng kiểm tra lại (yêu cầu điền đúng 10 chữ số)!");
         return;
     }
-    // 1. Thu thập dữ liệu và chuyển sang bảng chờ xác nhận
+
     pendingOrderData = {
-        form_type: "ORDER", // Đánh dấu đây là dữ liệu đặt hàng
+        form_type: "ORDER",
         name: document.getElementById('cname').value,
         phone: phoneVal,
         email: document.getElementById('cemail').value,
@@ -202,18 +198,15 @@ window.submitForm = function (e) {
         date: getNowVN()
     };
 
-    // Điền thông tin lên bảng Confirm
     document.getElementById('conf-name').innerText = pendingOrderData.name;
     document.getElementById('conf-phone').innerText = pendingOrderData.phone;
     document.getElementById('conf-address').innerText = pendingOrderData.address;
 
-    // Tắt bảng Form đi, bật bảng Confirm lên
     closeOrderModal();
     document.getElementById('confirm-modal').style.display = 'flex';
 }
 
 window.editInfo = function () {
-    // Tắt bảng Confirm đi, bật lại bảng Form (dữ liệu khách vẫn còn nguyên)
     document.getElementById('confirm-modal').style.display = 'none';
     document.getElementById('order-modal').style.display = 'flex';
 }
@@ -229,24 +222,20 @@ window.executeOrder = function () {
     btnConfirm.style.display = 'none';
     loadingText.style.display = 'block';
 
-    // 1. Gửi lên Google Sheets và CRM với trạng thái mặc định là COD
     sendOrderToGoogle('COD').then((crmResponse) => {
-        // Lưu ID từ CRM để cập nhật nếu thanh toán SePay thành công
         if (crmResponse && crmResponse.id) {
             pendingOrderData.crm_id = crmResponse.id;
         }
-        
-        // Lưu thông tin vào localStorage để trang thanks.html hiển thị
+
         localStorage.setItem('last_order_info', JSON.stringify({
             ...pendingOrderData,
             payment_status: 'COD'
         }));
 
         document.getElementById('confirm-modal').style.display = 'none';
-        
+
         const totalToPay = pendingOrderData.total_price;
 
-        // Reset giỏ hàng
         cartQty = 0;
         document.getElementById('cart-badge').innerText = 0;
         document.getElementById('checkout-form').reset();
@@ -255,11 +244,11 @@ window.executeOrder = function () {
         btnConfirm.style.display = 'block';
         loadingText.style.display = 'none';
 
-        // 2. MỞ BẢNG THANH TOÁN QR
         openPaymentModal(totalToPay);
     });
 }
 
+// FIX BUG 1: sendOrderToGoogle — luôn gửi CRM trước, Google Sheet là phụ
 window.sendOrderToGoogle = function (paymentStatus) {
     if (!pendingOrderData) return Promise.resolve(null);
 
@@ -268,30 +257,36 @@ window.sendOrderToGoogle = function (paymentStatus) {
         payment_status: paymentStatus
     };
 
-    // Trả về promise để executeOrder có thể lấy được ID từ CRM
     return new Promise((resolve) => {
-        Promise.all([
-            fetch(GOOGLE_APP_SCRIPT_URL, {
+        // Luôn gửi CRM trước, độc lập với Google Sheet
+        const crmPromise = fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dataToSend)
+        })
+        .then(res => res.json())
+        .catch(err => {
+            console.error("Lỗi gửi CRM:", err);
+            return null;
+        });
+
+        // Google Sheet chỉ gửi nếu URL đã được cấu hình hợp lệ
+        const googlePromise = hasGoogleScriptUrl()
+            ? fetch(GOOGLE_APP_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 cache: 'no-cache',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dataToSend)
-            }),
-            fetch('/api/orders', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataToSend)
-            }).then(res => res.json()).catch(err => console.error("Lỗi gửi CRM:", err))
-        ])
-        .then((results) => { 
-            const crmData = results[1]; // Kết quả từ fetch('/api/orders')
-            resolve(crmData);
-        })
-        .catch(err => {
-            console.error("Lỗi gửi dữ liệu:", err);
-            resolve(null);
-        });
+            }).catch(err => console.warn("Lỗi gửi Google Sheet:", err))
+            : Promise.resolve(null);
+
+        Promise.all([crmPromise, googlePromise])
+            .then(([crmData]) => resolve(crmData))
+            .catch(err => {
+                console.error("Lỗi không xác định:", err);
+                resolve(null);
+            });
     });
 }
 
@@ -310,19 +305,12 @@ setInterval(() => {
     }
 }, 1000);
 
-// Xử lý Gửi Form Waitlist
+// FIX BUG 1: submitWaitlist — luôn gửi CRM, không bị block bởi Google Script URL
 window.submitWaitlist = function (e) {
     e.preventDefault();
 
-    // Kiểm tra đã gán Webhook chưa
-    if (GOOGLE_APP_SCRIPT_URL === "HIỆN_TẠI_CHƯA_CÓ_LINK") {
-        alert("CHƯA CẬP NHẬT LINK APP SCRIPT!\nBạn phải cài đặt code Google App Script như hướng dẫn và dán URL vào file script.js dòng trên cùng thì hệ thống mới chạy.");
-        return;
-    }
-
-    // Thu thập dữ liệu
     const data = {
-        form_type: "WAITLIST", // Thêm cờ phân biệt biểu mẫu
+        form_type: "WAITLIST",
         name: document.getElementById('wl-name').value,
         phone: document.getElementById('wl-phone').value,
         email: document.getElementById('wl-email').value,
@@ -332,31 +320,31 @@ window.submitWaitlist = function (e) {
         date: getNowVN()
     };
 
-    // Gửi song song tới Server cục bộ (nếu có) và Google App Script Webhook
-    Promise.all([
-        fetch('/api/waitlist', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).catch(() => {/* Silent catch: bỏ qua nếu server lỗi/không tồn tại */ }),
+    // Luôn gửi CRM — không phụ thuộc vào Google Script URL
+    const crmPromise = fetch('/api/waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }).catch(err => console.error("Lỗi gửi CRM waitlist:", err));
 
-        fetch(GOOGLE_APP_SCRIPT_URL, {
+    // Google Sheet chỉ gửi nếu URL đã được cấu hình hợp lệ
+    const googlePromise = hasGoogleScriptUrl()
+        ? fetch(GOOGLE_APP_SCRIPT_URL, {
             method: 'POST',
             mode: 'no-cors',
             cache: 'no-cache',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
-        })
-    ])
+        }).catch(err => console.warn("Lỗi gửi Google Sheet waitlist:", err))
+        : Promise.resolve(null);
+
+    Promise.all([crmPromise, googlePromise])
         .then(() => {
-            // Hiện thông báo cảm ơn (Luôn hiện vì Google Sheet thường sẽ thành công)
             showAlert("<b style='color:#28a745; font-size:20px;'>🎉 GỬI THÔNG TIN THÀNH CÔNG!</b><br><br>Cảm ơn Anh/Chị đã tham gia khảo sát. Dữ liệu đã được ghi nhận.");
-            // Reset form
             document.getElementById('waitlist-form').reset();
         })
         .catch(err => {
-            console.warn("Lỗi đồng bộ (có thể do thiếu server):", err);
-            // Nếu Google Sheet cũng tèo thì mới báo lỗi mạng thực sự
+            console.warn("Lỗi đồng bộ:", err);
             alert("Đã có lỗi xảy ra. Vui lòng kiểm tra lại kết nối mạng!");
         });
 };
@@ -394,7 +382,6 @@ const chatbotInput = document.getElementById('chatbot-input');
 const chatbotSendBtn = document.getElementById('chatbot-send-btn');
 const unreadDot = document.querySelector('.unread-dot');
 
-// Bản đồ từ khóa để chatbot trả lời câu hỏi tự do
 const keywordMap = [
     { keywords: ['giá', 'nhiêu', 'tiền', 'bao nhiêu'], index: 0 },
     { keywords: ['ồn', 'tiếng', 'âm thanh'], index: 1 },
@@ -429,7 +416,6 @@ closeChatbot.onclick = (e) => {
     chatbotWindow.style.display = 'none';
 };
 
-// Gửi tin nhắn khi nhấn nút hoặc nhấn Enter
 chatbotSendBtn.onclick = () => handleCustomQuestion();
 chatbotInput.onkeypress = (e) => {
     if (e.key === 'Enter') handleCustomQuestion();
@@ -453,7 +439,6 @@ function startChat() {
 
 function renderOptions() {
     chatbotOptions.innerHTML = '';
-    // Chỉ hiện bớt 4 câu hỏi tiêu biểu để giao diện gọn gàng
     chatbotData.faqs.slice(0, 4).forEach((faq, index) => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
@@ -462,7 +447,6 @@ function renderOptions() {
         chatbotOptions.appendChild(btn);
     });
 
-    // Nút đặt mua nhanh
     const buyBtn = document.createElement('button');
     buyBtn.className = 'opt-btn';
     buyBtn.style.borderColor = '#28a745';
@@ -491,14 +475,12 @@ function handleCustomQuestion() {
         const lowerText = text.toLowerCase();
         let foundIndex = -1;
 
-        // Kiểm tra nếu khách để lại số điện thoại (định dạng 10 chữ số)
         const phoneRegex = /(0[3|5|7|8|9][0-9]{8}|[0-9]{10})/g;
         if (phoneRegex.test(text)) {
             addMessage("Cảm ơn bạn đã để lại số điện thoại. Tôi đã ghi nhận và sẽ liên hệ lại cho bạn sớm nhất có thể để tư vấn kỹ hơn nhé!", 'bot');
             return;
         }
 
-        // Tìm kiếm theo từ khóa
         for (const item of keywordMap) {
             if (item.keywords.some(k => lowerText.includes(k))) {
                 foundIndex = item.index;
@@ -511,7 +493,6 @@ function handleCustomQuestion() {
         } else if (lowerText.includes('mua') || lowerText.includes('đặt hàng')) {
             handleBuy();
         } else {
-            // Câu trả lời mặc định đúng giọng brand
             addMessage("Tôi chưa rõ ý anh em lắm. Hay là anh em cứ để lại Số điện thoại ở đây, tôi gọi điện giải thích trực tiếp cho nhanh, không lằng nhằng. Hoặc anh em chọn các câu hỏi bên dưới nhé.", 'bot');
             renderOptions();
         }
@@ -555,25 +536,21 @@ function handleBuy() {
 let paymentCheckInterval = null;
 
 window.openPaymentModal = function (amount) {
-    // Sử dụng CRM ID để Webhook có thể đối soát chính xác đơn hàng trong database
     const orderCode = (pendingOrderData && pendingOrderData.crm_id) ? pendingOrderData.crm_id : Math.floor(Date.now() / 1000);
     const description = "DH" + orderCode;
-    
+
     const qrUrl = `https://qr.sepay.vn/img?acc=${SEPAY_STK}&bank=${SEPAY_BANK}&amount=${amount}&des=${description}&template=compact`;
 
     document.getElementById('qr-image').src = qrUrl;
     document.getElementById('sepay-description').innerText = description;
     document.getElementById('payment-modal').style.display = 'flex';
 
-    // Bắt đầu kiểm tra giao dịch (Polling fallback)
     startPaymentCheck(amount, description);
 }
 
 window.closePaymentModal = function () {
     document.getElementById('payment-modal').style.display = 'none';
     if (paymentCheckInterval) clearInterval(paymentCheckInterval);
-    
-    // Khi thoát bảng QR, chuyển hướng tới trang cảm ơn (vì đơn COD đã được tạo trước đó)
     window.location.href = 'thanks.html';
 }
 
@@ -586,8 +563,6 @@ window.copySepayContent = function () {
 
 function startPaymentCheck(amount, description) {
     if (paymentCheckInterval) clearInterval(paymentCheckInterval);
-
-    // Kiểm tra mỗi 2 giây (thay vì 3 - nhanh hơn)
     paymentCheckInterval = setInterval(() => {
         checkPaymentStatus();
     }, 2000);
@@ -599,14 +574,13 @@ async function checkPaymentStatus() {
     try {
         const orderId = pendingOrderData.crm_id;
         const description = 'DH' + orderId;
-        
-        // Gọi endpoint mới - server sẽ chủ động hỏi SePay API thay vì chỉ check DB
+
         const response = await fetch(`/api/check-payment?id=${orderId}&desc=${description}`);
         if (!response.ok) return;
 
         const data = await response.json();
         console.log(`[Polling] Trạng thái đơn #${orderId}:`, data.status, `(source: ${data.source || 'unknown'})`);
-        
+
         if (data.status === 'sepay') {
             clearInterval(paymentCheckInterval);
             handlePaymentSuccess();
@@ -621,7 +595,6 @@ function handlePaymentSuccess() {
     document.getElementById('status-text').innerHTML = "<b style='color:#28a745;'>🎉 Đã nhận được thanh toán!</b>";
     document.getElementById('status-text').style.color = "#28a745";
 
-    // Cập nhật trạng thái 'sepay' cho đơn hàng đã có trong CRM (Dùng ID đã lưu)
     if (pendingOrderData && pendingOrderData.crm_id) {
         fetch('/api/orders', {
             method: 'POST',
@@ -631,8 +604,7 @@ function handlePaymentSuccess() {
                 status: 'sepay'
             })
         }).catch(err => console.error("Lỗi cập nhật trạng thái SePay:", err));
-        
-        // Cập nhật lại localStorage để trang thanks hiển thị đúng trạng thái
+
         const lastOrder = JSON.parse(localStorage.getItem('last_order_info') || '{}');
         lastOrder.payment_status = 'sepay';
         localStorage.setItem('last_order_info', JSON.stringify(lastOrder));
