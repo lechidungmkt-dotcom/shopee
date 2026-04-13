@@ -20,7 +20,7 @@ try {
 
 // ===== CẤU HÌNH SEPAY =====
 const SEPAY_API_KEY = "K2AJXHECOHBZJQDMNLSX0J36A7IS8BKWTCGRV11AIBQRO4DSG4YJFZ7PIK3Y5BFX";
-const SEPAY_ACCOUNT = "80002345939";
+const SEPAY_ACCOUNT = "96886693009619";
 
 // FIX BUG 4: Dùng biến môi trường SITE_URL để link email không trỏ về localhost
 const SITE_URL = process.env.SITE_URL || 'http://localhost:3000';
@@ -446,47 +446,26 @@ const server = http.createServer(async (req, res) => {
         return;
     }
 
-    // --- API: CHECK PAYMENT ---
+    // --- API: CHECK PAYMENT (CHỈ KIỂM TRA DB) ---
     if (req.url.startsWith('/api/check-payment') && req.method === 'GET') {
         const urlParams = new URLSearchParams(req.url.split('?')[1] || '');
         const orderId = urlParams.get('id');
-        const description = (urlParams.get('desc') || '').toUpperCase();
 
         try {
+            // Chỉ kiểm tra trong DB (Webhook sẽ cập nhật DB khi có tiền về)
             const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
-            if (dbData[0]?.status === 'sepay') {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, status: 'sepay', source: 'db' }));
-                return;
-            }
-
-            const sepayData = await fetchSepayTransactions();
-            console.log(`[CheckPayment] Hỏi SePay API cho đơn #${orderId}, tìm nội dung: "${description}"`);
-
-            const transactions = sepayData?.transactions || sepayData?.data || [];
-            const matched = transactions.find(t => {
-                const content = (t.transaction_content || t.content || t.description || '').toUpperCase();
-                return content.includes(`DH${orderId}`) || (description && content.includes(description));
-            });
-
-            if (matched) {
-                console.log(`[CheckPayment] ✅ Tìm thấy giao dịch khớp! Cập nhật đơn #${orderId}...`);
-                await runSQL(`UPDATE orders SET status='sepay' WHERE id=${orderId}`);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, status: 'sepay', source: 'api' }));
-            } else {
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, status: dbData[0]?.status || 'pending', source: 'api' }));
-            }
+            const status = dbData[0]?.status || 'pending';
+            
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ 
+                success: true, 
+                status: status, 
+                source: 'db' 
+            }));
         } catch (e) {
             console.error('[CheckPayment Error]:', e.message);
-            try {
-                const dbData = await queryDB(`SELECT status FROM orders WHERE id=${orderId}`);
-                res.writeHead(200, { 'Content-Type': 'application/json' });
-                res.end(JSON.stringify({ success: true, status: dbData[0]?.status || 'pending', source: 'db_fallback' }));
-            } catch (e2) {
-                res.writeHead(500); res.end(JSON.stringify({ error: e.message }));
-            }
+            res.writeHead(500); 
+            res.end(JSON.stringify({ error: e.message }));
         }
         return;
     }

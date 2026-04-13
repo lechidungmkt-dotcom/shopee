@@ -5,7 +5,7 @@ const GOOGLE_APP_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyWT7NxnV
 const SEPAY_API_KEY = "K2AJXHECOHBZJQDMNLSX0J36A7IS8BKWTCGRV11AIBQRO4DSG4YJFZ7PIK3Y5BFX";
 const SEPAY_STK = "96886693009619";
 const SEPAY_BANK = "MSB";
-const SEPAY_ACCOUNT_NAME = "LE CHI DUNG";
+const SEPAY_ACCOUNT_NAME = "QUACH THAI UYEN";
 
 // Helper: Lấy ngày giờ hiện tại theo múi giờ Việt Nam (GMT+7)
 function getNowVN() {
@@ -563,9 +563,10 @@ window.copySepayContent = function () {
 
 function startPaymentCheck(amount, description) {
     if (paymentCheckInterval) clearInterval(paymentCheckInterval);
+    // Cập nhật mỗi 5 giây (nhẹ hơn cho server)
     paymentCheckInterval = setInterval(() => {
         checkPaymentStatus();
-    }, 2000);
+    }, 5000);
 }
 
 async function checkPaymentStatus() {
