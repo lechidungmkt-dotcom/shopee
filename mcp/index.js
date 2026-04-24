@@ -70,150 +70,154 @@ function getTodayString() {
     return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`;
 }
 
-// Setup MCP Server
-const server = new McpServer({
-    name: "Rulax-GoClaw-MCP",
-    version: "1.0.0"
-});
+// Setup MCP Server Function
+function createMcpServer() {
+    const server = new McpServer({
+        name: "Rulax-GoClaw-MCP",
+        version: "1.0.0"
+    });
 
-// Tool 1: get_daily_sales_summary
-server.tool(
-    "get_daily_sales_summary",
-    "Lấy báo cáo doanh thu, số lượng đơn hàng theo ngày. Nếu không truyền date, sẽ lấy ngày hôm nay.",
-    {
-        date: z.string().optional().describe("Ngày cần lấy báo cáo định dạng YYYY-MM-DD (VD: 2026-04-24)"),
-    },
-    async ({ date }) => {
-        try {
-            const targetDate = date || getTodayString();
-            console.log(`[${new Date().toISOString()}] Function called: get_daily_sales_summary(date=${targetDate})`);
-            
-            const sql = `
-                SELECT 
-                    COUNT(id) as total_orders, 
-                    SUM(amount) as revenue,
-                    SUM(CASE WHEN status='sepay' THEN 1 ELSE 0 END) as sepay_orders,
-                    SUM(CASE WHEN status='COD' THEN 1 ELSE 0 END) as cod_orders
-                FROM orders
-                WHERE order_date LIKE '${targetDate}%'
-            `;
-            const result = await queryDB(sql);
-            
-            const data = result[0];
-            return {
-                content: [{
-                    type: "text",
-                    text: `Báo cáo doanh thu ngày ${targetDate}:
+    // Tool 1: get_daily_sales_summary
+    server.tool(
+        "get_daily_sales_summary",
+        "Lấy báo cáo doanh thu, số lượng đơn hàng theo ngày. Nếu không truyền date, sẽ lấy ngày hôm nay.",
+        {
+            date: z.string().optional().describe("Ngày cần lấy báo cáo định dạng YYYY-MM-DD (VD: 2026-04-24)"),
+        },
+        async ({ date }) => {
+            try {
+                const targetDate = date || getTodayString();
+                console.log(`[${new Date().toISOString()}] Function called: get_daily_sales_summary(date=${targetDate})`);
+                
+                const sql = `
+                    SELECT 
+                        COUNT(id) as total_orders, 
+                        SUM(amount) as revenue,
+                        SUM(CASE WHEN status='sepay' THEN 1 ELSE 0 END) as sepay_orders,
+                        SUM(CASE WHEN status='COD' THEN 1 ELSE 0 END) as cod_orders
+                    FROM orders
+                    WHERE order_date LIKE '${targetDate}%'
+                `;
+                const result = await queryDB(sql);
+                
+                const data = result[0];
+                return {
+                    content: [{
+                        type: "text",
+                        text: `Báo cáo doanh thu ngày ${targetDate}:
 - Tổng số đơn hàng: ${data.total_orders || 0}
 - Doanh thu: ${(data.revenue || 0).toLocaleString('vi-VN')} VNĐ
 - Đã thanh toán (SePay): ${data.sepay_orders || 0} đơn
 - COD: ${data.cod_orders || 0} đơn`
-                }]
-            };
-        } catch (error) {
-            console.error(error);
-            return { content: [{ type: "text", text: `Error: ${error.message}` }] };
-        }
-    }
-);
-
-// Tool 2: get_hot_waitlist_leads
-server.tool(
-    "get_hot_waitlist_leads",
-    "Lấy danh sách các khách hàng đã điền form khảo sát nhưng chưa chốt đơn, dùng để gọi telesale.",
-    {
-        limit: z.number().optional().describe("Số lượng leads cần lấy, mặc định 5"),
-    },
-    async ({ limit }) => {
-        try {
-            const count = limit || 5;
-            console.log(`[${new Date().toISOString()}] Function called: get_hot_waitlist_leads(limit=${count})`);
-            
-            const sql = `
-                SELECT c.name, c.phone, c.notes, c.registration_date
-                FROM customers c
-                LEFT JOIN orders o ON c.id = o.customer_id
-                WHERE o.id IS NULL
-                ORDER BY c.registration_date DESC
-                LIMIT ${count}
-            `;
-            const leads = await queryDB(sql);
-            
-            if (leads.length === 0) {
-                return { content: [{ type: "text", text: "Hiện không có khách hàng chờ nào chưa chốt đơn." }] };
+                    }]
+                };
+            } catch (error) {
+                console.error(error);
+                return { content: [{ type: "text", text: `Error: ${error.message}` }] };
             }
-
-            let text = `Tìm thấy ${leads.length} khách hàng tiềm năng:\n\n`;
-            leads.forEach((lead, index) => {
-                text += `${index + 1}. ${lead.name} - ${lead.phone}\n   ${lead.notes}\n   Ngày đăng ký: ${lead.registration_date}\n\n`;
-            });
-
-            return { content: [{ type: "text", text }] };
-        } catch (error) {
-            console.error(error);
-            return { content: [{ type: "text", text: `Error: ${error.message}` }] };
         }
-    }
-);
+    );
 
-// Tool 3: update_order_shipping_status
-server.tool(
-    "update_order_shipping_status",
-    "Cập nhật trạng thái giao hàng của một đơn hàng cụ thể.",
-    {
-        order_id: z.number().describe("ID của đơn hàng (số)"),
-        status: z.string().describe("Trạng thái mới (VD: 'Đã gửi', 'Đang giao', 'Hoàn thành')")
-    },
-    async ({ order_id, status }) => {
-        try {
-            console.log(`[${new Date().toISOString()}] Function called: update_order_shipping_status(order_id=${order_id}, status='${status}')`);
-            
-            // Check if order exists
-            const existing = await queryDB(`SELECT id FROM orders WHERE id = ${order_id}`);
-            if (existing.length === 0) {
-                return { content: [{ type: "text", text: `Không tìm thấy đơn hàng với ID ${order_id}` }] };
+    // Tool 2: get_hot_waitlist_leads
+    server.tool(
+        "get_hot_waitlist_leads",
+        "Lấy danh sách các khách hàng đã điền form khảo sát nhưng chưa chốt đơn, dùng để gọi telesale.",
+        {
+            limit: z.number().optional().describe("Số lượng leads cần lấy, mặc định 5"),
+        },
+        async ({ limit }) => {
+            try {
+                const count = limit || 5;
+                console.log(`[${new Date().toISOString()}] Function called: get_hot_waitlist_leads(limit=${count})`);
+                
+                const sql = `
+                    SELECT c.name, c.phone, c.notes, c.registration_date
+                    FROM customers c
+                    LEFT JOIN orders o ON c.id = o.customer_id
+                    WHERE o.id IS NULL
+                    ORDER BY c.registration_date DESC
+                    LIMIT ${count}
+                `;
+                const leads = await queryDB(sql);
+                
+                if (leads.length === 0) {
+                    return { content: [{ type: "text", text: "Hiện không có khách hàng chờ nào chưa chốt đơn." }] };
+                }
+
+                let text = `Tìm thấy ${leads.length} khách hàng tiềm năng:\n\n`;
+                leads.forEach((lead, index) => {
+                    text += `${index + 1}. ${lead.name} - ${lead.phone}\n   ${lead.notes}\n   Ngày đăng ký: ${lead.registration_date}\n\n`;
+                });
+
+                return { content: [{ type: "text", text }] };
+            } catch (error) {
+                console.error(error);
+                return { content: [{ type: "text", text: `Error: ${error.message}` }] };
             }
-
-            const sql = `UPDATE orders SET status = '${status}' WHERE id = ${order_id}`;
-            await runSQL(sql);
-            
-            return { content: [{ type: "text", text: `Thành công! Đã cập nhật đơn hàng #${order_id} sang trạng thái: ${status}` }] };
-        } catch (error) {
-            console.error(error);
-            return { content: [{ type: "text", text: `Error: ${error.message}` }] };
         }
-    }
-);
+    );
 
-// Tool 4: update_product_price
-server.tool(
-    "update_product_price",
-    "Cập nhật giá bán của sản phẩm trên website.",
-    {
-        product_id: z.number().optional().describe("ID của sản phẩm (mặc định là 1)"),
-        new_price: z.number().describe("Giá bán mới (số tiền VNĐ, ví dụ: 950000)")
-    },
-    async ({ product_id, new_price }) => {
-        try {
-            const id = product_id || 1;
-            console.log(`[${new Date().toISOString()}] Function called: update_product_price(product_id=${id}, new_price=${new_price})`);
-            
-            // Check if product exists
-            const existing = await queryDB(`SELECT name, price FROM products WHERE id = ${id}`);
-            if (existing.length === 0) {
-                return { content: [{ type: "text", text: `Không tìm thấy sản phẩm với ID ${id}` }] };
+    // Tool 3: update_order_shipping_status
+    server.tool(
+        "update_order_shipping_status",
+        "Cập nhật trạng thái giao hàng của một đơn hàng cụ thể.",
+        {
+            order_id: z.number().describe("ID của đơn hàng (số)"),
+            status: z.string().describe("Trạng thái mới (VD: 'Đã gửi', 'Đang giao', 'Hoàn thành')")
+        },
+        async ({ order_id, status }) => {
+            try {
+                console.log(`[${new Date().toISOString()}] Function called: update_order_shipping_status(order_id=${order_id}, status='${status}')`);
+                
+                // Check if order exists
+                const existing = await queryDB(`SELECT id FROM orders WHERE id = ${order_id}`);
+                if (existing.length === 0) {
+                    return { content: [{ type: "text", text: `Không tìm thấy đơn hàng với ID ${order_id}` }] };
+                }
+
+                const sql = `UPDATE orders SET status = '${status}' WHERE id = ${order_id}`;
+                await runSQL(sql);
+                
+                return { content: [{ type: "text", text: `Thành công! Đã cập nhật đơn hàng #${order_id} sang trạng thái: ${status}` }] };
+            } catch (error) {
+                console.error(error);
+                return { content: [{ type: "text", text: `Error: ${error.message}` }] };
             }
-
-            const sql = `UPDATE products SET price = ${new_price} WHERE id = ${id}`;
-            await runSQL(sql);
-            
-            return { content: [{ type: "text", text: `Thành công! Đã cập nhật giá mới cho sản phẩm "${existing[0].name}" thành ${new_price.toLocaleString('vi-VN')} VNĐ.` }] };
-        } catch (error) {
-            console.error(error);
-            return { content: [{ type: "text", text: `Error: ${error.message}` }] };
         }
-    }
-);
+    );
+
+    // Tool 4: update_product_price
+    server.tool(
+        "update_product_price",
+        "Cập nhật giá bán của sản phẩm trên website.",
+        {
+            product_id: z.number().optional().describe("ID của sản phẩm (mặc định là 1)"),
+            new_price: z.number().describe("Giá bán mới (số tiền VNĐ, ví dụ: 950000)")
+        },
+        async ({ product_id, new_price }) => {
+            try {
+                const id = product_id || 1;
+                console.log(`[${new Date().toISOString()}] Function called: update_product_price(product_id=${id}, new_price=${new_price})`);
+                
+                // Check if product exists
+                const existing = await queryDB(`SELECT name, price FROM products WHERE id = ${id}`);
+                if (existing.length === 0) {
+                    return { content: [{ type: "text", text: `Không tìm thấy sản phẩm với ID ${id}` }] };
+                }
+
+                const sql = `UPDATE products SET price = ${new_price} WHERE id = ${id}`;
+                await runSQL(sql);
+                
+                return { content: [{ type: "text", text: `Thành công! Đã cập nhật giá mới cho sản phẩm "${existing[0].name}" thành ${new_price.toLocaleString('vi-VN')} VNĐ.` }] };
+            } catch (error) {
+                console.error(error);
+                return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+            }
+        }
+    );
+
+    return server;
+}
 
 // Express Server + SSE Transport
 const app = express();
@@ -224,7 +228,10 @@ const transports = new Map();
 app.get("/sse", async (req, res) => {
     console.log(`[${new Date().toISOString()}] New SSE Connection established.`);
     const transport = new SSEServerTransport("/messages", res);
-    await server.connect(transport);
+    
+    // Tạo một instance McpServer riêng cho kết nối này
+    const serverInstance = createMcpServer();
+    await serverInstance.connect(transport);
     
     // Lưu transport vào map dựa trên sessionId do SDK tự sinh ra
     transports.set(transport.sessionId, transport);
