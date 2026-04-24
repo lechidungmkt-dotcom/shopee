@@ -206,10 +206,10 @@ app.post("/messages", async (req, res) => {
 });
 
 const PORT = 3001;
-app.listen(PORT, '127.0.0.1', () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`===============================================`);
     console.log(`✅ Rulax GoClaw MCP Server is running!`);
-    console.log(`📡 SSE Endpoint: http://127.0.0.1:${PORT}/sse`);
-    console.log(`✉️  Message POST: http://127.0.0.1:${PORT}/messages`);
+    console.log(`📡 SSE Endpoint: http://0.0.0.0:${PORT}/sse`);
+    console.log(`✉️  Message POST: http://0.0.0.0:${PORT}/messages`);
     console.log(`===============================================`);
 });
