@@ -185,6 +185,36 @@ server.tool(
     }
 );
 
+// Tool 4: update_product_price
+server.tool(
+    "update_product_price",
+    "Cập nhật giá bán của sản phẩm trên website.",
+    {
+        product_id: z.number().optional().describe("ID của sản phẩm (mặc định là 1)"),
+        new_price: z.number().describe("Giá bán mới (số tiền VNĐ, ví dụ: 950000)")
+    },
+    async ({ product_id, new_price }) => {
+        try {
+            const id = product_id || 1;
+            console.log(`[${new Date().toISOString()}] Function called: update_product_price(product_id=${id}, new_price=${new_price})`);
+            
+            // Check if product exists
+            const existing = await queryDB(`SELECT name, price FROM products WHERE id = ${id}`);
+            if (existing.length === 0) {
+                return { content: [{ type: "text", text: `Không tìm thấy sản phẩm với ID ${id}` }] };
+            }
+
+            const sql = `UPDATE products SET price = ${new_price} WHERE id = ${id}`;
+            await runSQL(sql);
+            
+            return { content: [{ type: "text", text: `Thành công! Đã cập nhật giá mới cho sản phẩm "${existing[0].name}" thành ${new_price.toLocaleString('vi-VN')} VNĐ.` }] };
+        } catch (error) {
+            console.error(error);
+            return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+        }
+    }
+);
+
 // Express Server + SSE Transport
 const app = express();
 // Removed express.json() so SDK can read raw stream
