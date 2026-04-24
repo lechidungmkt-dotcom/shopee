@@ -39,7 +39,7 @@ except Exception as e:
 `;
         fs.writeFileSync(SCRIPT_PATH, pyCode);
 
-        const child = cp.spawn('python', [SCRIPT_PATH, DB_PATH, isQuery ? 'true' : 'false']);
+        const child = cp.spawn('python3', [SCRIPT_PATH, DB_PATH, isQuery ? 'true' : 'false']);
         
         let stdout = '';
         let stderr = '';
