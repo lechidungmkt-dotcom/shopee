@@ -189,15 +189,25 @@ server.tool(
 const app = express();
 // Removed express.json() so SDK can read raw stream
 
-let transport = null;
+const transports = new Map();
 
 app.get("/sse", async (req, res) => {
     console.log(`[${new Date().toISOString()}] New SSE Connection established.`);
-    transport = new SSEServerTransport("/messages", res);
+    const transport = new SSEServerTransport("/messages", res);
     await server.connect(transport);
+    
+    // Lưu transport vào map dựa trên sessionId do SDK tự sinh ra
+    transports.set(transport.sessionId, transport);
+    
+    req.on('close', () => {
+        console.log(`[${new Date().toISOString()}] SSE Connection closed: ${transport.sessionId}`);
+        transports.delete(transport.sessionId);
+    });
 });
 
 app.post("/messages", async (req, res) => {
+    const sessionId = req.query.sessionId;
+    const transport = transports.get(sessionId);
     if (transport) {
         await transport.handlePostMessage(req, res);
     } else {
