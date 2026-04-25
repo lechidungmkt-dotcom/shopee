@@ -216,6 +216,59 @@ function createMcpServer() {
         }
     );
 
+    // Tool 5: get_new_business_signals
+    server.tool(
+        "get_new_business_signals",
+        "Đọc các tín hiệu kinh doanh mới (ví dụ: đơn hàng mới hoặc khách vừa thanh toán) chưa được thông báo. Sau khi đọc, các tín hiệu này sẽ được tự động đánh dấu là đã báo để tránh trùng lặp.",
+        {},
+        async () => {
+            try {
+                console.log(`[${new Date().toISOString()}] Function called: get_new_business_signals()`);
+                
+                // Lấy các đơn hàng có is_notified = 0
+                const sql = `
+                    SELECT o.id, o.amount, o.status, o.order_date, c.name, c.phone
+                    FROM orders o
+                    JOIN customers c ON o.customer_id = c.id
+                    WHERE o.is_notified = 0
+                    ORDER BY o.id ASC
+                `;
+                const newSignals = await queryDB(sql);
+                
+                if (newSignals.length === 0) {
+                    return { content: [{ type: "text", text: "Không có sự kiện/tín hiệu mới nào." }] };
+                }
+
+                let messages = [];
+                let orderIds = [];
+
+                newSignals.forEach(signal => {
+                    let msg = "";
+                    if (signal.status === 'sepay') {
+                        msg = `[THANH TOÁN THÀNH CÔNG] Đơn #${signal.id} - Khách hàng: ${signal.name} (${signal.phone}) vừa thanh toán ${(signal.amount || 0).toLocaleString('vi-VN')} VNĐ qua SePay.`;
+                    } else {
+                        msg = `[ĐƠN HÀNG MỚI] Đơn #${signal.id} - Khách hàng: ${signal.name} (${signal.phone}) vừa đặt hàng. Tổng: ${(signal.amount || 0).toLocaleString('vi-VN')} VNĐ (Trạng thái: ${signal.status}).`;
+                    }
+                    messages.push(msg);
+                    orderIds.push(signal.id);
+                });
+
+                // Cập nhật is_notified = 1
+                if (orderIds.length > 0) {
+                    const updateSql = `UPDATE orders SET is_notified = 1 WHERE id IN (${orderIds.join(',')})`;
+                    await runSQL(updateSql);
+                }
+
+                let textResponse = `Tìm thấy ${newSignals.length} tín hiệu mới:\n` + messages.map(m => "- " + m).join("\n");
+
+                return { content: [{ type: "text", text: textResponse }] };
+            } catch (error) {
+                console.error(error);
+                return { content: [{ type: "text", text: `Error: ${error.message}` }] };
+            }
+        }
+    );
+
     return server;
 }
 

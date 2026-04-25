@@ -539,6 +539,7 @@ async function initDatabase() {
             quantity INTEGER DEFAULT 1,
             status TEXT DEFAULT 'Pending',
             order_date TEXT,
+            is_notified INTEGER DEFAULT 0,
             FOREIGN KEY(customer_id) REFERENCES customers(id),
             FOREIGN KEY(product_id) REFERENCES products(id)
         );
@@ -549,6 +550,7 @@ async function initDatabase() {
     const migrations = [
         { sql: `ALTER TABLE customers ADD COLUMN email TEXT`,              label: "customers.email" },
         { sql: `ALTER TABLE orders ADD COLUMN quantity INTEGER DEFAULT 1`, label: "orders.quantity" },
+        { sql: `ALTER TABLE orders ADD COLUMN is_notified INTEGER DEFAULT 0`, label: "orders.is_notified" },
     ];
     for (const m of migrations) {
         try {
